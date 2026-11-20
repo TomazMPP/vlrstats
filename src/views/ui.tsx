@@ -2,7 +2,7 @@ import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 import { REGIONS } from '../lib.js';
 
-export const ASSET_V = '2';
+export const ASSET_V = '3';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">
@@ -101,6 +101,7 @@ export const Layout: FC<{ title?: string; children: Child; noindex?: boolean }> 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
         <link rel="stylesheet" href={`/styles.css?v=${ASSET_V}`} />
+        <script src={`/app.js?v=${ASSET_V}`} defer></script>
       </head>
       <body>
         <div class="dots" aria-hidden="true"></div>

@@ -144,7 +144,7 @@ export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pag
           )}
         </aside>
 
-        <main class="main">
+        <main class="main" id="pmain">
           <div class="in" style="--d:60ms"><ProfileTabs base={base} on="overview" /></div>
 
           <section class="in" style="--d:120ms">
@@ -165,7 +165,7 @@ export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pag
             <div class="sh"><h2>Partidas</h2>
               <nav class="tabs" aria-label="Fila">
                 {(Object.keys(QUEUES) as Queue[]).map((q) => (
-                  <a class={`tab${q === queue ? ' on' : ''}`} href={qs(q)} aria-current={q === queue ? 'true' : undefined}>{QUEUES[q]}</a>
+                  <a class={`tab${q === queue ? ' on' : ''}`} href={qs(q)} data-swap="#pmain" aria-current={q === queue ? 'true' : undefined}>{QUEUES[q]}</a>
                 ))}
               </nav>
             </div>
@@ -205,7 +205,7 @@ export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pag
             </div>
             {p.hasMore && (
               <div style="display:flex;justify-content:center;padding-top:16px">
-                <a class="btn" href={qs(queue, pages + 1)}>Carregar mais 10</a>
+                <a class="btn" href={qs(queue, pages + 1)} data-swap="#pmain">Carregar mais 10</a>
               </div>
             )}
           </section>

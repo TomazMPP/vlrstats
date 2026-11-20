@@ -93,6 +93,7 @@ button, input, select { font: inherit; color: inherit; }
 .iconbtn { width: 36px; padding: 0; flex: none; }
 .iconbtn .i-sun, :root[data-theme="dark"] .iconbtn .i-moon { display: none; }
 :root[data-theme="dark"] .iconbtn .i-sun { display: block; }
+[aria-busy="true"] { opacity: .55; transition: opacity .2s var(--ease) .12s; pointer-events: none; }
 .btn-lg { height: 44px; padding: 0 16px; border-radius: 12px; font-size: 14px; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--fg-3); }
@@ -217,3 +218,9 @@ td a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .in { animation: in .5s var(--ease) both; animation-delay: var(--d, 0ms); }
 @keyframes in { from { opacity: 0; transform: translateY(10px); filter: blur(2px); } }
 @media (prefers-reduced-motion: reduce) { .in { animation: none; } .btn, .btn:hover, .btn:active { transform: none; } }
+
+/* Smooth full-page navigations where supported (profile -> match, etc.) */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
+}

@@ -36,6 +36,8 @@ app.use('/styles.css', async (c, next) => { await next(); c.header('Cache-Contro
 app.use('/favicon.svg', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=604800'); });
 app.use('/styles.css', serveStatic({ root: './public' }));
 app.use('/favicon.svg', serveStatic({ root: './public' }));
+app.use('/app.js', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=31536000, immutable'); });
+app.use('/app.js', serveStatic({ root: './public' }));
 
 // ---- recent searches (cookie, no server state) ------------------------------
 

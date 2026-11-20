@@ -28,7 +28,7 @@ export const StatsPage = (s: Props) => {
         <span class="muted small">{tierName(s.tier)}</span>
       </a>
     }>
-      <div class="stack">
+      <div class="stack" id="smain">
         <div class="in" style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
           <div>
             <h1 class="title">Estatísticas</h1>
@@ -41,7 +41,7 @@ export const StatsPage = (s: Props) => {
             <ProfileTabs base={base} on="stats" />
             <nav class="tabs" aria-label="Período">
               {(Object.keys(PERIODS) as Period[]).map((p) => (
-                <a class={`tab${p === s.period ? ' on' : ''}`} href={`${base}/stats${p === '50' ? '' : `?period=${p}`}`} aria-current={p === s.period ? 'true' : undefined}>{PERIODS[p]}</a>
+                <a class={`tab${p === s.period ? ' on' : ''}`} href={`${base}/stats${p === '50' ? '' : `?period=${p}`}`} data-swap="#smain" aria-current={p === s.period ? 'true' : undefined}>{PERIODS[p]}</a>
               ))}
             </nav>
           </div>
