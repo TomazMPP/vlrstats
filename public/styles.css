@@ -224,3 +224,18 @@ td a:hover { text-decoration: underline; text-underline-offset: 3px; }
   @view-transition { navigation: auto; }
   ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .18s; }
 }
+
+/* skeletons: one shared shimmer (fixed background = every bar in phase), text bars sized to the type */
+:root { --sk: color-mix(in oklab, var(--fg) 7%, transparent); --sk-hi: color-mix(in oklab, var(--surface) 75%, transparent); }
+:root[data-theme="dark"] { --sk: color-mix(in oklab, var(--fg) 8%, transparent); --sk-hi: color-mix(in oklab, var(--fg) 7%, transparent); }
+.sk {
+  display: block; flex: none; max-width: 100%; border-radius: 6px; background-color: var(--sk);
+  background-image: linear-gradient(100deg, transparent 42%, var(--sk-hi) 50%, transparent 58%);
+  background-size: 200vw 100%; background-repeat: no-repeat; background-attachment: fixed;
+  animation: sk 1.9s linear infinite;
+}
+@keyframes sk { from { background-position: -100vw 0; } to { background-position: 100vw 0; } }
+.sk-row { pointer-events: none; }
+.sk-reveal { animation: skin .32s var(--ease) both; }
+@keyframes skin { from { opacity: 0; filter: blur(3px); } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; background-image: none; } .sk-reveal { animation: none; } }
