@@ -9,7 +9,7 @@ export const NotFound = ({ what, riotid }: { what: 'player' | 'match' | 'page'; 
       </h1>
       <p class="sub">
         {what === 'player'
-          ? <>Confira o nome, o TAG e a região{riotid ? <> de <span translate="no" class="num">{riotid}</span></> : null}. Contas que nunca jogaram ou que trocaram de nome recentemente podem não aparecer.</>
+          ? <>Confira o nome e o TAG{riotid ? <> de <span translate="no" class="num">{riotid}</span></> : null}. Contas que nunca jogaram ou que trocaram de nome recentemente podem não aparecer.</>
           : 'O link pode estar errado ou a partida ainda não foi processada.'}
       </p>
       <a class="btn" href="/"><Icon name="back" size={14} />Nova busca</a>

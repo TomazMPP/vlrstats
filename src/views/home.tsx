@@ -1,10 +1,10 @@
 import { Footer, Icon, Img, Layout, Logo, ThemeToggle } from './ui.js';
-import { REGIONS, ago, img, profileUrl, tierName } from '../lib.js';
+import { ago, img, profileUrl, tierName } from '../lib.js';
 
 export type Recent = { r: string; n: string; t: string; tier: number; card: string; at: number };
 
-export const Home = ({ recent, region, value, hint }: {
-  recent: Recent[]; region: string; value?: string; hint?: string;
+export const Home = ({ recent, value, hint }: {
+  recent: Recent[]; value?: string; hint?: string;
 }) => (
   <Layout>
     <div class="wrap page">
@@ -28,12 +28,6 @@ export const Home = ({ recent, region, value, hint }: {
                 <input class="input" id="rid" name="riotid" type="text" autocomplete="off" spellcheck={false}
                   placeholder="Nome#TAG" required autofocus value={value} aria-describedby="rid-hint" />
               </div>
-            </div>
-            <div>
-              <label class="label" for="reg">Região</label>
-              <select class="select" id="reg" name="region">
-                {REGIONS.map((r) => <option value={r} selected={r === region}>{r.toUpperCase()}</option>)}
-              </select>
             </div>
             <button class="btn btn-ink btn-lg" type="submit">Buscar<Icon name="arrow" /></button>
           </div>

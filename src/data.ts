@@ -1,7 +1,7 @@
 // Data layer: fetch from HenrikDev through the cache, compact matches, aggregate stats.
 import { henrik, ApiError } from './henrik.js';
 import { cached, getMatch, putMatch, recentMatches } from './db.js';
-import { ratio, seg, type Queue, type Region } from './lib.js';
+import { isRegion, ratio, seg, type Queue, type Region } from './lib.js';
 
 // ---- API shapes (only the fields we read) ----------------------------------
 
@@ -110,6 +110,17 @@ export function compact(m: V4Match): CMatch {
 const TTL = { account: 3600, mmr: 300, history: 300, matches: 300, stored: 600 };
 const keyOf = (region: string, name: string, tag: string) => `${region}:${name.toLowerCase()}#${tag.toLowerCase()}`;
 export const playerPrefix = keyOf;
+/** Account lookup is region-agnostic, so it is cached once per Riot ID. */
+export const accountKey = (name: string, tag: string) => `acct:${name.toLowerCase()}#${tag.toLowerCase()}`;
+
+export const findAccount = (name: string, tag: string) =>
+  cached(accountKey(name, tag), TTL.account, () => henrik<Account>(`/valorant/v2/account/${seg(name)}/${seg(tag)}`));
+
+/** The account's home region (where its ranked data lives), when the API says. */
+export const regionOf = (a: Account): Region | null => {
+  const r = a.region?.toLowerCase() ?? '';
+  return isRegion(r) ? r : null;
+};
 
 /** Optional data: 404 → null, other errors → null + warning. */
 async function optional<T>(p: Promise<{ value: T; stale: boolean }>): Promise<{ value: T | null; warn: boolean }> {
@@ -129,7 +140,7 @@ export async function loadProfile(region: Region, name: string, tag: string, que
   const path = `/${region}/pc/${seg(name)}/${seg(tag)}`;
   const mode = queue === 'all' ? '' : `&mode=${queue}`;
 
-  const accountP = cached(`${key}:account`, TTL.account, () => henrik<Account>(`/valorant/v2/account/${seg(name)}/${seg(tag)}`));
+  const accountP = findAccount(name, tag);
   const mmrP = optional(cached(`${key}:mmr`, TTL.mmr, () => henrik<Mmr>(`/valorant/v3/mmr${path}`)));
   const histP = optional(cached(`${key}:history`, TTL.history, async () =>
     (await henrik<{ history: HistoryEntry[] }>(`/valorant/v2/mmr-history${path}`)).history ?? []));

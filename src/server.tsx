@@ -6,7 +6,7 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { secureHeaders } from 'hono/secure-headers';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches } from './db.js';
-import { loadMatch, loadProfile, loadStored, playerPrefix, weaponsAndSides, type CMatch } from './data.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionOf, weaponsAndSides, type CMatch } from './data.js';
 import { isQueue, isRegion, profileUrl, type Region } from './lib.js';
 import { Home, type Recent } from './views/home.js';
 import { ProfilePage } from './views/profile.js';
@@ -83,22 +83,35 @@ function fail(c: Context, e: unknown, kind: 'player' | 'match', riotid?: string)
 // ---- routes -------------------------------------------------------------------
 
 app.get('/', (c) => {
-  const region = c.req.query('region');
-  return c.html(<Home recent={readRecent(c)} region={region && isRegion(region) ? region : readRecent(c)[0]?.r ?? 'br'}
+  return c.html(<Home recent={readRecent(c)}
     value={c.req.query('riotid')} hint={c.req.query('e') === '1' ? 'Use o formato Nome#TAG, com o # antes do TAG.' : undefined} />);
 });
 
-app.get('/search', (c) => {
+// Region is detected from the account; BR is the default when the API doesn't say.
+app.get('/search', async (c) => {
   const raw = (c.req.query('riotid') ?? '').trim();
-  const region = c.req.query('region') ?? 'br';
   const i = raw.lastIndexOf('#');
   const name = i > 0 ? raw.slice(0, i).trim() : '';
   const tag = i > 0 ? raw.slice(i + 1).trim() : '';
-  if (!name || !tag || name.length > 16 || tag.length > 5 || !isRegion(region)) {
-    return c.redirect(`/?e=1&region=${encodeURIComponent(region)}&riotid=${encodeURIComponent(raw.slice(0, 32))}`);
+  if (!name || !tag || name.length > 16 || tag.length > 5 || /[#/]/.test(name + tag)) {
+    return c.redirect(`/?e=1&riotid=${encodeURIComponent(raw.slice(0, 32))}`);
   }
-  return c.redirect(profileUrl(region, name, tag));
+  try {
+    const { value: a } = await findAccount(name, tag);
+    return c.redirect(profileUrl(regionOf(a) ?? 'br', a.name, a.tag));
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return fail(c, e, 'player', `${name}#${tag}`);
+    return c.redirect(profileUrl('br', name, tag)); // API hiccup: the profile page handles errors
+  }
 });
+
+/** If the URL's region isn't the account's home region, the canonical URL to send the user to. */
+async function homeUrl(c: Context, pl: { region: Region; name: string; tag: string }, suffix = '') {
+  const { value: a } = await findAccount(pl.name, pl.tag);
+  const home = regionOf(a);
+  if (!home || home === pl.region) return null;
+  return profileUrl(home, a.name, a.tag) + suffix + new URL(c.req.url).search;
+}
 
 app.post('/recent/clear', (c) => {
   deleteCookie(c, RECENT, { path: '/' });
@@ -112,6 +125,8 @@ app.get('/p/:region/:name/:tag', async (c) => {
   const queue = isQueue(q) ? q : 'competitive';
   const pages = Math.min(5, Math.max(1, Math.ceil(Number(c.req.query('n') ?? 10) / 10) || 1));
   try {
+    const moved = await homeUrl(c, pl);
+    if (moved) return c.redirect(moved);
     const p = await loadProfile(pl.region, pl.name, pl.tag, queue, pages);
     pushRecent(c, { r: pl.region, n: p.account.name, t: p.account.tag, tier: p.mmr?.current.tier.id ?? 0, card: p.account.card ?? '', at: Date.now() });
     return c.html(<ProfilePage p={p} queue={queue} pages={pages} />);
@@ -125,6 +140,7 @@ app.post('/p/:region/:name/:tag/refresh', (c) => {
   if (!pl) return c.redirect('/', 303);
   // only drop entries older than 30 s, so hammering the button can't burn the rate limit
   invalidate(playerPrefix(pl.region, pl.name, pl.tag) + ':', 30);
+  invalidate(accountKey(pl.name, pl.tag), 30);
   return c.redirect(profileUrl(pl.region, pl.name, pl.tag), 303);
 });
 
@@ -134,6 +150,8 @@ app.get('/p/:region/:name/:tag/stats', async (c) => {
   const per = c.req.query('period');
   const period: Period = per && per in PERIODS ? (per as Period) : '50';
   try {
+    const moved = await homeUrl(c, pl, '/stats');
+    if (moved) return c.redirect(moved);
     const [p, stored] = await Promise.all([
       loadProfile(pl.region, pl.name, pl.tag, 'competitive'),
       loadStored(pl.region, pl.name, pl.tag, 'competitive'),

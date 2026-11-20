@@ -1,6 +1,5 @@
 import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
-import { REGIONS } from '../lib.js';
 
 export const ASSET_V = '3';
 
@@ -47,15 +46,11 @@ export const RiotId = ({ name, tag }: { name: string; tag: string }) => (
   <span translate="no">{name}<span class="muted">#{tag}</span></span>
 );
 
-export const MiniSearch = ({ region = 'br' }: { region?: string }) => (
+export const MiniSearch = () => (
   <form class="mini" role="search" action="/search" method="get">
     <label for="q" class="sr">Buscar jogador</label>
     <Icon name="search" />
     <input id="q" name="riotid" type="text" placeholder="Nome#TAG" autocomplete="off" spellcheck={false} required />
-    <label for="qr" class="sr">Região</label>
-    <select id="qr" name="region">
-      {REGIONS.map((r) => <option value={r} selected={r === region}>{r.toUpperCase()}</option>)}
-    </select>
   </form>
 );
 
@@ -71,7 +66,7 @@ const THEME_JS = `(()=>{const d=document.documentElement,m=matchMedia('(prefers-
 export const Header = ({ children, region }: { children?: Child; region?: string }) => (
   <header class="top">
     {children ?? <a class="brand" href="/"><Logo />vlrstats</a>}
-    <div class="hrow" style="gap:8px"><MiniSearch region={region} /><ThemeToggle /></div>
+    <div class="hrow" style="gap:8px"><MiniSearch /><ThemeToggle /></div>
   </header>
 );
 
