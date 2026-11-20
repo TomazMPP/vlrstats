@@ -15,6 +15,9 @@ let remaining = 30;
 let resetAt = 0;
 const inflight = new Map<string, Promise<unknown>>();
 
+/** Requests left in the current minute (background work yields to visitors below a margin). */
+export const rateLeft = () => (Date.now() >= resetAt ? 30 : remaining);
+
 export function henrik<T>(path: string): Promise<T> {
   const hit = inflight.get(path);
   if (hit) return hit as Promise<T>;

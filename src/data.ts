@@ -169,22 +169,12 @@ export type Profile = Awaited<ReturnType<typeof loadProfile>>;
 export async function loadProfile(region: Region, name: string, tag: string, queue: Queue, pages = 1) {
   const key = keyOf(region, name, tag);
   const path = `/${region}/pc/${seg(name)}/${seg(tag)}`;
-  const mode = queue === 'all' ? '' : `&mode=${queue}`;
 
   const accountP = findAccount(name, tag);
   const mmrP = optional(cached(`${key}:mmr`, TTL.mmr, () => henrik<Mmr>(`/valorant/v3/mmr${path}`)));
   const histP = optional(cached(`${key}:history`, TTL.history, async () =>
     (await henrik<{ history: HistoryEntry[] }>(`/valorant/v2/mmr-history${path}`)).history ?? []));
-  const page = (i: number) => optional(cached(`${key}:matches:${queue}:${i}`, TTL.matches, async () => {
-    const list = await henrik<V4Match[]>(`/valorant/v4/matches${path}?size=10&start=${i * 10}${mode}`);
-    const ids: string[] = [];
-    for (const m of list ?? []) {
-      if (!m.metadata?.is_completed) continue;
-      putMatch(compact(m));
-      ids.push(m.metadata.match_id);
-    }
-    return ids;
-  }));
+  const page = (i: number) => optional(matchPage(region, name, tag, queue, i));
   const listP = Promise.all(Array.from({ length: pages }, (_, i) => page(i)));
 
   const account = await accountP; // 404 here = player doesn't exist
@@ -201,6 +191,21 @@ export async function loadProfile(region: Region, name: string, tag: string, que
     hasMore: fetched >= pages * 10 && pages < 5,
     warn: account.stale || mmr.warn || hist.warn || list.some((l) => l.warn),
   };
+}
+
+/** One page of 10 full matches; each is stored for good. */
+export function matchPage(region: Region, name: string, tag: string, queue: Queue, i: number) {
+  const mode = queue === 'all' ? '' : `&mode=${queue}`;
+  return cached(`${keyOf(region, name, tag)}:matches:${queue}:${i}`, TTL.matches, async () => {
+    const list = await henrik<V4Match[]>(`/valorant/v4/matches/${region}/pc/${seg(name)}/${seg(tag)}?size=10&start=${i * 10}${mode}`);
+    const ids: string[] = [];
+    for (const m of list ?? []) {
+      if (!m.metadata?.is_completed) continue;
+      putMatch(compact(m));
+      ids.push(m.metadata.match_id);
+    }
+    return ids;
+  });
 }
 
 /** Light per-match lines for many matches in a single request (stats page). */

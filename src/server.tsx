@@ -18,6 +18,7 @@ import { HistoryPage } from './views/history.js';
 import { AdminPage } from './views/admin.js';
 import { acts, loadHistory, months, rrByMatch } from './history.js';
 import { report, track } from './analytics.js';
+import { startRefresh } from './refresh.js';
 import { ApiFailure, NotFound, RateLimited } from './views/states.js';
 
 const app = new Hono();
@@ -246,3 +247,4 @@ app.onError((e, c) => (e instanceof HTTPException ? e.getResponse() : fail(c, e,
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? "127.0.0.1" }, () => console.log(`vlrstats on http://localhost:${port}`));
+startRefresh();
