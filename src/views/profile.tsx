@@ -1,14 +1,28 @@
 import { Icon, Img, RiotId, Shell } from './ui.js';
 import { groupBy, lineOf, totals, type Line, type Profile } from '../data.js';
+import type { RrPoint } from '../history.js';
 import { QUEUES, ago, fmt, img, profileUrl, tierName, tierShort, type Queue } from '../lib.js';
 
-export const ProfileTabs = ({ base, on }: { base: string; on: 'overview' | 'stats' }) => (
+export const ProfileTabs = ({ base, on }: { base: string; on: 'overview' | 'stats' | 'history' }) => (
   <nav class="tabs" aria-label="Seções do perfil">
     <a class={`tab${on === 'overview' ? ' on' : ''}`} href={base} aria-current={on === 'overview' ? 'page' : undefined}>Visão geral</a>
     <a class="tab" href={`${base}#partidas`}>Partidas</a>
     <a class={`tab${on === 'stats' ? ' on' : ''}`} href={`${base}/stats`} aria-current={on === 'stats' ? 'page' : undefined}>Estatísticas</a>
+    <a class={`tab${on === 'history' ? ' on' : ''}`} href={`${base}/history`} aria-current={on === 'history' ? 'page' : undefined}>Histórico</a>
   </nav>
 );
+
+/** RR won or lost in a match; a division change shows the new rank. */
+const RrDelta = ({ p }: { p: RrPoint }) => {
+  const moved = p.before >= 3 && p.tier !== p.before;
+  const label = p.placement ? 'Classificatória' : `${fmt.signed(p.change)} RR · ${tierName(p.tier)} ${p.rr} RR${moved ? (p.tier > p.before ? ' · subiu de divisão' : ' · caiu de divisão') : ''}${p.prot ? ' · proteção contra rebaixamento' : ''}`;
+  return (
+    <span class={`rrd${p.change > 0 ? ' up' : p.change < 0 ? ' down' : ''}${moved && p.tier < p.before ? ' drop' : ''}`} title={label} aria-label={label}>
+      {moved && <Img src={img.rank(p.tier)} class="rk-xs" w={16} h={16} />}
+      {p.placement ? 'Clas.' : fmt.signed(p.change)}
+    </span>
+  );
+};
 
 const Sparkline = ({ elos }: { elos: number[] }) => {
   if (elos.length < 2) return <p class="small muted">Poucas partidas ranqueadas para o gráfico.</p>;
@@ -57,13 +71,12 @@ const MmrCard = ({ p }: { p: Profile }) => {
   );
 };
 
-export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pages: number }) => {
+export const ProfilePage = ({ p, queue, pages, rrs }: { p: Profile; queue: Queue; pages: number; rrs: Map<string, RrPoint> }) => {
   const a = p.account;
   const base = profileUrl(p.region, a.name, a.tag);
   const lines = p.matches.map((m) => lineOf(m, a.puuid)).filter((l): l is Line => !!l);
   const t = totals(lines);
   const agents = groupBy(lines, 'agent').slice(0, 3);
-  const rrById = new Map(p.history.map((h) => [h.match_id, h.last_change]));
   const cur = p.mmr?.current;
   const season = p.mmr?.seasonal?.at(-1);
   const hist20 = p.history.slice(0, 20).reverse();
@@ -179,7 +192,7 @@ export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pag
                     const me = m.players.find((x) => x.puuid === a.puuid)!;
                     const mine = m.teams[me.team];
                     const shots = l.hs + l.bs + l.ls;
-                    const rr = rrById.get(m.id);
+                    const rr = rrs.get(m.id);
                     const cls = l.win ? 'w' : l.draw ? 'e' : 'l';
                     return (
                       <a class="mrow" href={`/m/${p.region}/${m.id}?p=${a.puuid}`}>
@@ -195,7 +208,7 @@ export const ProfilePage = ({ p, queue, pages }: { p: Profile; queue: Queue; pag
                         <span class="r num">{l.k} / {l.d} / {l.a}</span>
                         <span class="r num">{fmt.int(l.score / l.rounds)}</span>
                         <span class="r num muted">{shots ? fmt.pct(l.hs / shots) : '—'}</span>
-                        <span class="r num" style="font-weight:500">{rr != null ? fmt.signed(rr) : '—'}</span>
+                        <span class="r num">{rr ? <RrDelta p={rr} /> : <span class="muted">—</span>}</span>
                         <Icon name="chevron" class="go" />
                       </a>
                     );

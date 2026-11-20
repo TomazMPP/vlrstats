@@ -165,7 +165,7 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 900px) { .side { max-width: none; } }
 .main { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 40px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.mrow, .mhead { display: grid; grid-template-columns: 40px minmax(0, 1.7fr) 64px 92px 52px 52px 56px 16px; align-items: center; gap: 12px; padding: 10px 16px; }
+.mrow, .mhead { display: grid; grid-template-columns: 40px minmax(0, 1.7fr) 64px 92px 52px 52px 68px 16px; align-items: center; gap: 12px; padding: 10px 16px; }
 .mrow { text-decoration: none; border-top: 1px solid var(--line); transition: background .15s var(--ease); }
 .mrow:first-child { border-top: 0; }
 .mrow:hover { background: var(--sunken); }
@@ -239,3 +239,32 @@ td a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .sk-reveal { animation: skin .32s var(--ease) both; }
 @keyframes skin { from { opacity: 0; filter: blur(3px); } }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; background-image: none; } .sk-reveal { animation: none; } }
+
+/* ---- charts (history, admin) ---- */
+.chart { display: block; width: 100%; min-width: 640px; height: auto; overflow: visible; }
+.ax { font-size: 11px; fill: var(--fg-3); font-variant-numeric: tabular-nums; }
+.ax.strong { fill: var(--fg); font-weight: 600; }
+.hit { fill: transparent; cursor: crosshair; }
+.hit:hover { fill: color-mix(in oklab, var(--fg) 5%, transparent); }
+svg [data-tip]:not(.hit):hover { stroke: var(--fg); stroke-width: 1.5; }
+.lgd-line { display: inline-block; width: 14px; height: 2px; border-radius: 2px; background: var(--fg); }
+.lgd-dot { display: inline-block; width: 9px; height: 9px; border-radius: 99px; background: var(--surface); box-shadow: inset 0 0 0 1.6px var(--fg); }
+.lgd-dot.bad { background: var(--danger); box-shadow: none; }
+.cal { display: inline-block; width: 11px; height: 11px; border-radius: 3px; }
+.mult { padding: 14px 16px 12px; }
+.mapline.wide { grid-template-columns: 128px minmax(0, 1fr) 44px 64px; }
+a.lift { text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease), transform .2s var(--ease); }
+a.lift:hover { box-shadow: var(--e2), var(--top); transform: translateY(-1px); }
+.tip {
+  position: fixed; z-index: 50; pointer-events: none; max-width: 260px; padding: 8px 10px; border-radius: 10px;
+  background: var(--surface); box-shadow: var(--e2), var(--top); font-size: 12px; line-height: 1.45;
+  white-space: pre-line; font-variant-numeric: tabular-nums; color: var(--fg-2);
+}
+.tip::first-line { color: var(--fg); font-weight: 600; }
+
+/* RR won/lost per match row */
+.rrd { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 40px; height: 22px; padding: 0 7px; border-radius: 7px; font-weight: 600; font-size: 13px; }
+.rrd.up { background: var(--fg); color: var(--bg); }
+.rrd.down { background: var(--sunken); color: var(--fg-2); box-shadow: inset 0 0 0 1px var(--line); }
+.rrd.drop { color: var(--danger); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 40%, transparent); }
+.rk-xs { width: 16px; height: 16px; }

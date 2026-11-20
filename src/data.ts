@@ -11,7 +11,11 @@ type Account = { puuid: string; region: string; account_level: number; name: str
 type Mmr = {
   peak: { season: { short: string }; tier: Tier; rr: number } | null;
   current: { tier: Tier; rr: number; last_change: number; elo: number; games_needed_for_rating: number; leaderboard_placement: { rank: number } | null };
-  seasonal: { season: { id: string; short: string }; wins: number; games: number }[];
+  seasonal: Seasonal[];
+};
+export type Seasonal = {
+  season: { id: string; short: string }; wins: number; games: number; end_tier: Tier | null; end_rr: number;
+  act_rank: Tier | null; act_wins: Tier[] | null; leaderboard_placement: { rank: number } | null;
 };
 type HistoryEntry = { match_id: string; tier: Tier; rr: number; last_change: number; elo: number; date: string; season: { id: string; short: string } };
 type V4Player = {
@@ -29,7 +33,7 @@ type V4Match = {
   rounds: { id: number; winning_team: string; winning_team_role: string }[];
   kills: { round: number; time_in_round_in_ms: number; killer: { puuid: string }; victim: { puuid: string }; weapon: { name: string | null } | null }[];
 };
-type Stored = {
+export type Stored = {
   meta: { id: string; map: Ref; mode: string; started_at: string; season: { id: string; short: string } };
   stats: { puuid: string; team: string; character: Ref; tier: number; score: number; kills: number; deaths: number; assists: number; shots: { head: number; body: number; leg: number }; damage: { made: number } };
   teams: { red: number; blue: number };
@@ -212,7 +216,7 @@ export type Line = {
   hs: number; bs: number; ls: number; dmg: number; fk: number | null;
 };
 
-function storedLine(s: Stored): Line {
+export function storedLine(s: Stored): Line {
   const mine = s.stats.team?.toLowerCase() === 'red' ? s.teams.red : s.teams.blue;
   const theirs = s.stats.team?.toLowerCase() === 'red' ? s.teams.blue : s.teams.red;
   return {

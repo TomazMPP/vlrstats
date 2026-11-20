@@ -86,3 +86,38 @@ export function recentMatches<T>(puuid: string, queue: string | null, limit: num
   const rows = (queue ? qRecentQueue.all(puuid, queue, limit) : qRecentAll.all(puuid, limit)) as { data: string }[];
   return rows.map((r) => JSON.parse(r.data));
 }
+
+// ---- per-player history that outlives the API's window --------------------
+// RR changes and stored-match lines are kept forever, so a profile's history
+// keeps growing even after HenrikDev stops returning its oldest entries.
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rr_history (puuid TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (puuid, id));
+  CREATE TABLE IF NOT EXISTS match_lines (puuid TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY (puuid, id));
+`);
+
+const keep = {
+  rr_history: db.prepare('INSERT OR REPLACE INTO rr_history (puuid, id, at, data) VALUES (?, ?, ?, ?)'),
+  match_lines: db.prepare('INSERT OR REPLACE INTO match_lines (puuid, id, at, data) VALUES (?, ?, ?, ?)'),
+};
+const kept = {
+  rr_history: db.prepare('SELECT data FROM rr_history WHERE puuid = ? ORDER BY at'),
+  match_lines: db.prepare('SELECT data FROM match_lines WHERE puuid = ? ORDER BY at'),
+};
+
+export function keepRows(table: keyof typeof keep, puuid: string, rows: { id: string; at: number }[]) {
+  db.exec('BEGIN');
+  try {
+    for (const r of rows) if (r.id && Number.isFinite(r.at)) keep[table].run(puuid, r.id, r.at, JSON.stringify(r));
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/** Oldest first. */
+export function keptRows<T>(table: keyof typeof keep, puuid: string): T[] {
+  return (kept[table].all(puuid) as { data: string }[]).map((r) => JSON.parse(r.data));
+}
+

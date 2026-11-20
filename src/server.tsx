@@ -12,6 +12,8 @@ import { Home, type Recent } from './views/home.js';
 import { ProfilePage } from './views/profile.js';
 import { StatsPage, PERIODS, type Period } from './views/stats.js';
 import { MatchPage } from './views/match.js';
+import { HistoryPage } from './views/history.js';
+import { acts, loadHistory, months, rrByMatch } from './history.js';
 import { ApiFailure, NotFound, RateLimited } from './views/states.js';
 
 const app = new Hono();
@@ -140,7 +142,7 @@ app.get('/p/:region/:name/:tag', async (c) => {
     const fixed = regionFix(c, pl, p);
     if (fixed) return c.redirect(fixed);
     pushRecent(c, { r: pl.region, n: p.account.name, t: p.account.tag, tier: p.mmr?.current.tier.id ?? 0, card: p.account.card ?? '', at: Date.now() });
-    return c.html(<ProfilePage p={p} queue={queue} pages={pages} />);
+    return c.html(<ProfilePage p={p} queue={queue} pages={pages} rrs={rrByMatch(p.account.puuid, p.history)} />);
   } catch (e) {
     return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
   }
@@ -153,6 +155,26 @@ app.post('/p/:region/:name/:tag/refresh', (c) => {
   invalidate(playerPrefix(pl.region, pl.name, pl.tag) + ':', 30);
   invalidate(accountKey(pl.name, pl.tag), 30);
   return c.redirect(profileUrl(pl.region, pl.name, pl.tag), 303);
+});
+
+app.get('/p/:region/:name/:tag/history', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return c.html(<NotFound what="player" />, 404);
+  try {
+    const moved = await homeUrl(c, pl, '/history');
+    if (moved) return c.redirect(moved);
+    const p = await loadProfile(pl.region, pl.name, pl.tag, 'competitive');
+    const fixed = regionFix(c, pl, p, '/history');
+    if (fixed) return c.redirect(fixed);
+    rrByMatch(p.account.puuid, p.history);
+    const h = await loadHistory(pl.region, pl.name, pl.tag, p.account.puuid);
+    return c.html(
+      <HistoryPage region={pl.region} name={p.account.name} tag={p.account.tag} card={p.account.card} tier={p.mmr?.current.tier.id ?? 0}
+        acts={acts(p.mmr?.seasonal ?? [])} rr={h.rr} lines={h.lines} months={months(h.lines)} warn={h.warn || p.warn} />,
+    );
+  } catch (e) {
+    return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
+  }
 });
 
 app.get('/p/:region/:name/:tag/stats', async (c) => {

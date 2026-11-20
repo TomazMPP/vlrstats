@@ -39,6 +39,14 @@ window.SK = (() => {
     `<section>${sh('72px', b('64px', 10))}<div class="card scroll"><div style="min-width:640px">${rows(5, trow)}</div></div></section>
     <div class="two"><section>${sh('56px', b('80px', 10))}<div class="card" style="padding:8px 18px">${rows(6, mapline)}</div></section>
     <section>${sh('76px', b('72px', 10))}<div class="card pad" style="display:flex;flex-direction:column;gap:14px">${r('100%', 14, 99)}${b('80%', 10)}</div></section></div>`;
+
+  // ---- history
+  const chart = (h) => `<div class="card pad">${r('100%', h, 10)}</div>`;
+  const history = () => `<div class="stack"><div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+    <div class="col" style="gap:10px">${b('160px', 26)}${b('260px', 10)}</div>${r('380px', 36, 12)}</div>
+    <section>${sh('84px', '')}<div class="grid3">${rows(6, kpi)}</div></section>
+    <section>${sh('110px', b('200px', 10))}${chart(220)}</section>
+    <section>${sh('96px', b('200px', 10))}${chart(260)}</section></div>`;
   const stats = () => `<div class="stack"><div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
     <div class="col" style="gap:10px">${b('180px', 26)}${b('220px', 10)}</div><div class="hrow" style="gap:8px;flex-wrap:wrap">${r('284px', 36, 12)}${r('130px', 36, 12)}</div></div>${statsMain()}</div>`;
 
@@ -54,7 +62,7 @@ window.SK = (() => {
   const LOGO = '<span class="mark" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="3" width="2.6" height="14" rx="1.3"/><rect x="4.85" y="7" width="2.6" height="10" rx="1.3"/><rect x="8.7" y="11" width="2.6" height="6" rx="1.3"/><rect x="12.55" y="7" width="2.6" height="10" rx="1.3"/><rect x="16.4" y="3" width="2.6" height="14" rx="1.3"/></svg></span>';
   const page = (kind) => {
     const toggle = document.querySelector('[data-theme-toggle]')?.outerHTML ?? '';
-    const body = kind === 'stats' ? stats() : kind === 'match' ? match() : profile();
+    const body = kind === 'stats' ? stats() : kind === 'history' ? history() : kind === 'match' ? match() : profile();
     return `<div class="wrap page" data-sk role="status" aria-label="Carregando">
       <header class="top"><a class="brand" href="/">${LOGO}vlrstats</a><div class="hrow" style="gap:8px">${r('200px', 36, 12)}${toggle}</div></header>${body}</div>`;
   };
@@ -66,6 +74,7 @@ window.SK = (() => {
     if (u.pathname === '/search') return 'profile';
     if (/^\/m\/[^/]+\/[^/]+\/?$/.test(u.pathname)) return 'match';
     if (/^\/p\/[^/]+\/[^/]+\/[^/]+\/stats\/?$/.test(u.pathname)) return 'stats';
+    if (/^\/p\/[^/]+\/[^/]+\/[^/]+\/history\/?$/.test(u.pathname)) return 'history';
     if (/^\/p\/[^/]+\/[^/]+\/[^/]+(\/refresh)?\/?$/.test(u.pathname)) return 'profile';
     return null;
   };
@@ -214,4 +223,27 @@ window.SK = (() => {
     if (sel) swap(location.href, sel, false);
     else location.reload();
   });
+})();
+
+// Chart tooltips: any element with data-tip (its first line is the title).
+(() => {
+  let tip = null, on = null;
+  const hide = () => { tip?.remove(); tip = null; on = null; };
+  document.addEventListener('pointermove', (e) => {
+    const el = e.target.closest?.('[data-tip]');
+    if (!el) return hide();
+    if (el !== on) {
+      on = el;
+      if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.setAttribute('role', 'tooltip'); document.body.append(tip); }
+      tip.textContent = el.dataset.tip;
+    }
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = e.clientX + 14, top = e.clientY - h - 12;
+    if (left + w > innerWidth - 8) left = e.clientX - w - 14;
+    if (top < 8) top = e.clientY + 18;
+    tip.style.left = Math.max(8, left) + 'px';
+    tip.style.top = top + 'px';
+  }, { passive: true });
+  addEventListener('scroll', hide, { passive: true });
+  document.documentElement.addEventListener('pointerleave', hide);
 })();
