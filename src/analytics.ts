@@ -26,9 +26,11 @@ function classify(method: string, path: string, c: Context) {
   }
   if (path === '/') return { kind: 'home', region: null, player: null };
   if (path === '/search') return { kind: 'search', region: null, player: (c.req.query('riotid') ?? '').trim().slice(0, 40) || null };
-  const p = /^\/p\/([^/]+)\/([^/]+)\/([^/]+)(\/stats|\/history)?\/?$/.exec(path);
+  const p = /^\/p\/([^/]+)\/([^/]+)\/([^/]+)(\/stats|\/history|\/recap)?\/?$/.exec(path);
   if (p) return { kind: p[4] ? p[4].slice(1) : 'profile', region: p[1], player: dec(p[2]) + '#' + dec(p[3]) };
   if (/^\/m\/[^/]+\/[^/]+\/?$/.test(path)) return { kind: 'match', region: path.split('/')[2], player: null };
+  const og = /^\/og\/(p|r|m)\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/.exec(path);
+  if (og) return { kind: 'og', region: og[2], player: og[1] === 'm' ? null : dec(og[3]) + '#' + dec(og[4] ?? '') };
   if (path === '/compare') return { kind: 'compare', region: null, player: (c.req.query('a') ?? '').trim().slice(0, 40) || null };
   return null;
 }

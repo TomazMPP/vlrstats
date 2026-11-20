@@ -41,7 +41,11 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
   const mvp = m.mvp ?? (hasPs ? byRank[0]?.puuid : undefined);
 
   return (
-    <Shell title={`${m.map} · ${label}`} region={region} head={
+    <Shell title={`${m.map} · ${label}`} region={region} og={{
+      title: `${m.map} · ${mine && other ? `${mine.won}–${other.won}` : label}${me ? ` · ${me.name}#${me.tag}` : ''}`,
+      desc: me ? `${result} · ${me.agent} · ${me.k}/${me.d}/${me.a}${me.perf ? ` · PS ${fmt.int(me.perf.score)}` : ''}` : `${label} · ${nr} rounds`,
+      image: `/og/m/${region}/${m.id}${me ? `?p=${me.puuid}` : ''}`, path: `/m/${region}/${m.id}${me ? `?p=${me.puuid}` : ''}`,
+    }} head={
       <a class="btn" href={backTo}><Icon name="back" size={14} />{me ? <span translate="no">{me.name}#{me.tag}</span> : 'vlrstats'}</a>
     }>
       <div class="stack">

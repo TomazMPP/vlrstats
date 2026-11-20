@@ -4,7 +4,7 @@ import { ago, fmt, profileUrl, ratio } from '../lib.js';
 
 const KINDS: Record<string, string> = {
   home: 'Início', search: 'Busca', profile: 'Perfil', stats: 'Estatísticas', history: 'Histórico', match: 'Partida', refresh: 'Atualizar',
-  'profile·aba': 'Perfil (troca de aba)', 'stats·aba': 'Estatísticas (troca de aba)', compare: 'Comparar',
+  'profile·aba': 'Perfil (troca de aba)', 'stats·aba': 'Estatísticas (troca de aba)', compare: 'Comparar', recap: 'Resumo do ato', og: 'Prévia de link (imagem)',
 };
 const PERIODS = [1, 7, 30, 90];
 

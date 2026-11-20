@@ -1,7 +1,7 @@
 import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 
-export const ASSET_V = '10';
+export const ASSET_V = '11';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">
@@ -28,6 +28,8 @@ const paths = {
   alert: <><path d="M10 3.5l7 12.5H3z" /><path d="M10 8.5v3M10 14h.01" /></>,
   sun: <><circle cx="10" cy="10" r="3.2" /><path d="M10 2.5v1.6M10 15.9v1.6M2.5 10h1.6M15.9 10h1.6M4.7 4.7l1.1 1.1M14.2 14.2l1.1 1.1M4.7 15.3l1.1-1.1M14.2 5.8l1.1-1.1" /></>,
   moon: <path d="M16 12.2A6.5 6.5 0 0 1 7.8 4a6.5 6.5 0 1 0 8.2 8.2z" />,
+  down: <path d="M10 3.5v9M6 9l4 4 4-4M4 16.5h12" />,
+  share: <><circle cx="14.5" cy="5" r="2" /><circle cx="5.5" cy="10" r="2" /><circle cx="14.5" cy="15" r="2" /><path d="M7.3 9l5.4-3M7.3 11l5.4 3" /></>,
   star: <path d="M10 2.8l2.2 4.5 4.9.7-3.55 3.47.84 4.9L10 14.06l-4.39 2.31.84-4.9L2.9 8l4.9-.7z" />,
   info: <><circle cx="10" cy="10" r="6.5" /><path d="M10 9v4M10 6.5h.01" /></>,
 } as const;
@@ -79,7 +81,12 @@ export const Footer = () => (
   </footer>
 );
 
-export const Layout: FC<{ title?: string; children: Child; noindex?: boolean }> = ({ title, children, noindex }) => (
+export const SITE = (process.env.SITE_URL ?? 'https://vlrstats.lol').replace(/\/$/, '');
+const DESC = 'Busque por Riot ID e veja rank, histórico de partidas e desempenho por agente, mapa e arma.';
+/** Share preview (Open Graph): paths are made absolute here. */
+export type Og = { title: string; desc?: string; image: string; path: string };
+
+export const Layout: FC<{ title?: string; children: Child; noindex?: boolean; og?: Og }> = ({ title, children, noindex, og }) => (
   <>
     {raw('<!DOCTYPE html>')}
     <html lang="pt-BR">
@@ -88,7 +95,17 @@ export const Layout: FC<{ title?: string; children: Child; noindex?: boolean }> 
         <script dangerouslySetInnerHTML={{ __html: THEME_JS }} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title ? `${title} · vlrstats` : 'vlrstats · Suas partidas de Valorant, analisadas'}</title>
-        <meta name="description" content="Busque por Riot ID e veja rank, histórico de partidas e desempenho por agente, mapa e arma." />
+        <meta name="description" content={og?.desc ?? DESC} />
+        <meta property="og:site_name" content="vlrstats" />
+        <meta property="og:type" content="website" />
+        <meta property="og:locale" content="pt_BR" />
+        <meta property="og:title" content={og?.title ?? 'vlrstats · Suas partidas de Valorant, analisadas'} />
+        <meta property="og:description" content={og?.desc ?? DESC} />
+        <meta property="og:url" content={`${SITE}${og?.path ?? '/'}`} />
+        <meta property="og:image" content={`${SITE}${og?.image ?? '/og/site.png'}`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
         {noindex && <meta name="robots" content="noindex" />}
         <meta name="theme-color" content="#f8f6f2" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#1f1d1a" media="(prefers-color-scheme: dark)" />
@@ -109,8 +126,8 @@ export const Layout: FC<{ title?: string; children: Child; noindex?: boolean }> 
 );
 
 /** Page shell used by all inner pages. */
-export const Shell: FC<{ title?: string; region?: string; head?: Child; children: Child }> = ({ title, region, head, children }) => (
-  <Layout title={title}>
+export const Shell: FC<{ title?: string; region?: string; head?: Child; og?: Og; children: Child }> = ({ title, region, head, og, children }) => (
+  <Layout title={title} og={og}>
     <div class="wrap page">
       <Header region={region}>{head}</Header>
       {children}

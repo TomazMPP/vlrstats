@@ -94,7 +94,11 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
   };
 
   return (
-    <Shell title={`${a.name}#${a.tag}`} region={p.region}>
+    <Shell title={`${a.name}#${a.tag}`} region={p.region} og={{
+      title: `${a.name}#${a.tag} · ${cur && cur.tier.id >= 3 ? `${tierName(cur.tier.id)} ${cur.rr} RR` : 'Valorant'}`,
+      desc: t.games ? `${fmt.pct(t.winRate)} de vitória · K/D ${fmt.two(t.kd)} · ACS ${fmt.int(t.acs)} nas últimas ${t.games} partidas` : undefined,
+      image: `/og/p/${p.region}/${encodeURIComponent(a.name)}/${encodeURIComponent(a.tag)}`, path: base,
+    }}>
       <div class="prof">
         <aside class="side in">
           <div style="display:flex;flex-direction:column;gap:14px">
@@ -116,6 +120,7 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                 <Icon name="star" size={14} /><span>Favoritar</span>
               </button>
               <a class="btn" href={`/compare?a=${encodeURIComponent(`${a.name}#${a.tag}`)}`}><Icon name="user" size={14} />Comparar</a>
+              <a class="btn" href={`${base}/recap`}><Icon name="share" size={14} />Resumo do ato</a>
             </div>
             {p.warn && <p class="note"><Icon name="info" size={14} />Alguns dados podem estar desatualizados.</p>}
           </div>

@@ -8,8 +8,11 @@ import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches, sharedMatches, suggest } from './db.js';
-import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, type CMatch } from './data.js';
-import { isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, type CMatch, type Line, type Profile } from './data.js';
+import { dateTime, img, isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
+import { cachedPng, genericSvg, matchSvg, profileSvg, recapSvg, type OgPlayer, type OgRank } from './og.js';
+import { recap } from './recap.js';
+import { RecapPage } from './views/recap.js';
 import { Home, type Recent } from './views/home.js';
 import { ProfilePage } from './views/profile.js';
 import { StatsPage, PERIODS, type Period } from './views/stats.js';
@@ -267,6 +270,94 @@ app.get('/p/:region/:name/:tag/stats', async (c) => {
   } catch (e) {
     return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
   }
+});
+
+// ---- sharing: act recap page + Open Graph images ----------------------------
+
+async function recapOf(pl: { region: Region; name: string; tag: string }) {
+  const p = await loadProfile(pl.region, pl.name, pl.tag, 'competitive');
+  rrByMatch(p.account.puuid, p.history);
+  const h = await loadHistory(pl.region, p.account.name, p.account.tag, p.account.puuid);
+  return { p, r: recap(p, h.lines, h.rr) };
+}
+const ogPlayer = (p: Profile): OgPlayer => ({ name: p.account.name, tag: p.account.tag, card: p.account.card ?? null, region: p.region });
+const rankOf = (p: Profile): OgRank => {
+  const tier = p.mmr?.current.tier.id ?? 0;
+  return { tier, rr: p.mmr?.current.rr ?? 0, peak: Math.max(p.mmr?.peak?.tier.id ?? 0, tier), icon: tier >= 3 ? img.rank(tier) : null };
+};
+
+app.get('/p/:region/:name/:tag/recap', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return c.html(<NotFound what="player" />, 404);
+  try {
+    const moved = await homeUrl(c, pl, '/recap');
+    if (moved) return c.redirect(moved);
+    const { p, r } = await recapOf(pl);
+    const fixed = regionFix(c, pl, p, '/recap');
+    if (fixed) return c.redirect(fixed);
+    return c.html(<RecapPage region={pl.region} name={p.account.name} tag={p.account.tag} card={p.account.card ?? null} r={r} />);
+  } catch (e) {
+    return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
+  }
+});
+
+const sendPng = (c: Context, buf: Buffer, maxAge: number) =>
+  c.body(new Uint8Array(buf), 200, { 'Content-Type': 'image/png', 'Cache-Control': `public, max-age=${maxAge}` });
+/** Any failure (unknown player, API down) still answers with the generic card, so previews never break. */
+async function ogImage(c: Context, key: string, ttl: number, draw: () => Promise<string>) {
+  try {
+    return sendPng(c, await cachedPng(key, ttl, draw), ttl);
+  } catch {
+    return sendPng(c, await cachedPng('site', 86400, async () => genericSvg()), 300);
+  }
+}
+
+app.get('/og/site.png', (c) => ogImage(c, 'site', 86400, async () => genericSvg()));
+
+app.get('/og/p/:region/:name/:tag', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return ogImage(c, 'site', 86400, async () => genericSvg());
+  return ogImage(c, `p:${playerPrefix(pl.region, pl.name, pl.tag)}`, 1800, async () => {
+    const p = await loadProfile(pl.region, pl.name, pl.tag, 'competitive');
+    const lines = p.matches.map((m) => lineOf(m, p.account.puuid)).filter((l): l is Line => !!l);
+    return profileSvg(ogPlayer(p), p.account.card ? img.card(p.account.card) : null, rankOf(p), totals(lines));
+  });
+});
+
+app.get('/og/r/:region/:name/:tag', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return ogImage(c, 'site', 86400, async () => genericSvg());
+  return ogImage(c, `r:${playerPrefix(pl.region, pl.name, pl.tag)}`, 1800, async () => {
+    const { p, r } = await recapOf(pl);
+    if (!r) return profileSvg(ogPlayer(p), p.account.card ? img.card(p.account.card) : null, rankOf(p), null);
+    return recapSvg(ogPlayer(p), p.account.card ? img.card(p.account.card) : null, r.rank, r.act);
+  });
+});
+
+app.get('/og/m/:region/:id', async (c) => {
+  const region = c.req.param('region');
+  const id = c.req.param('id');
+  if (!isRegion(region) || !/^[0-9a-f-]{36}$/i.test(id)) return ogImage(c, 'site', 86400, async () => genericSvg());
+  const pq = (c.req.query('p') ?? '').slice(0, 80);
+  return ogImage(c, `m:${id}:${pq}`, 86400, async () => {
+    const m = await loadMatch(region as Region, id);
+    const who = m.players.find((p) => p.puuid === pq) ?? m.players.find((p) => p.puuid === m.mvp)
+      ?? [...m.players].sort((a, b) => (b.perf?.score ?? b.score) - (a.perf?.score ?? a.score))[0];
+    const teamIds = Object.keys(m.teams);
+    const myTeam = who?.team ?? teamIds[0];
+    const mine = m.teams[myTeam], other = m.teams[teamIds.find((t) => t !== myTeam) ?? ''];
+    const draw = !!mine && !!other && mine.won === other.won;
+    return matchSvg({
+      map: m.map, mapIcon: m.mapId ? img.map(m.mapId) : null,
+      mode: m.queue === 'competitive' ? 'Competitivo' : m.queueName, when: dateTime(m.started),
+      mine: mine?.won ?? 0, theirs: other?.won ?? 0,
+      result: !mine || !other ? null : mine.win ? 'Vitória' : draw ? 'Empate' : 'Derrota',
+      who: who ? {
+        name: who.name, tag: who.tag, agent: who.agent, agentIcon: who.agentId ? img.agent(who.agentId) : null,
+        k: who.k, d: who.d, a: who.a, ps: who.perf?.score ?? null, mvp: who.puuid === m.mvp,
+      } : null,
+    });
+  });
 });
 
 app.get('/m/:region/:id', async (c) => {

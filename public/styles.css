@@ -323,3 +323,8 @@ a.lift:hover { box-shadow: var(--e2), var(--top); transform: translateY(-1px); }
 /* Admin funnel */
 .fun { display: flex; flex-direction: column; gap: 16px; }
 .fun-step { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+
+/* Act recap */
+.recap-fig { padding: 0; overflow: hidden; margin: 0; }
+.recap-fig img { display: block; width: 100%; height: auto; }
+.recap-act { gap: 8px; flex-wrap: wrap; }
