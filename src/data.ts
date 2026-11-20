@@ -21,12 +21,14 @@ type HistoryEntry = { match_id: string; tier: Tier; rr: number; last_change: num
 type V4Player = {
   puuid: string; name: string; tag: string; team_id: string; agent: Ref; account_level: number;
   stats: { score: number; kills: number; deaths: number; assists: number; headshots: number; bodyshots: number; legshots: number; damage: { dealt: number } };
-  tier: Tier; customization: { card: string };
+  tier: Tier; customization: { card: string }; party_id?: string;
+  performance?: { score: number; breakdown: Record<string, number | null>; ratings: { grade: string; combat: Record<string, string>; utility: Record<string, string> } } | null;
 };
 type V4Match = {
   metadata: {
     match_id: string; map: Ref; game_length_in_ms: number; started_at: string; is_completed: boolean;
     queue: { id: string; name: string; mode_type: string }; season: { id: string; short: string }; region: string; cluster: string;
+    mvp?: { puuid: string } | null;
   };
   players: V4Player[];
   teams: { team_id: string; rounds: { won: number; lost: number }; won: boolean }[];
@@ -45,13 +47,20 @@ export type CPlayer = {
   puuid: string; name: string; tag: string; team: string; agent: string; agentId: string; tier: number; level: number; card: string;
   score: number; k: number; d: number; a: number; hs: number; bs: number; ls: number; dmg: number; fk: number; fd: number;
   weapons: Record<string, number>; atk: [number, number]; def: [number, number];
+  /** Missing on matches stored before these fields were kept. */
+  party?: string; perf?: Perf;
 };
+/** Riot's Performance Score (the in-game scoreboard since 2025): total, grade and per-part ratings. */
+export type Perf = { score: number; grade: string; parts: Record<string, number | null>; ratings: Record<string, string> };
 export type CMatch = {
   id: string; map: string; mapId: string; queue: string; queueName: string; started: number; length: number;
   region: string; cluster: string; season: string; seasonId: string;
   teams: Record<string, { won: number; lost: number; win: boolean }>;
   rounds: { w: string; role: string }[];
   players: CPlayer[];
+  mvp?: string;
+  /** 2 = has Performance Score, party and MVP when the API sent them. */
+  v?: number;
 };
 
 const otherRole = (r: string) => (r === 'Attacker' ? 'Defender' : 'Attacker');
@@ -95,6 +104,11 @@ export function compact(m: V4Match): CMatch {
       score: s.score, k: s.kills, d: s.deaths, a: s.assists, hs: s.headshots, bs: s.bodyshots, ls: s.legshots,
       dmg: s.damage?.dealt ?? 0, fk: fk.get(p.puuid) ?? 0, fd: fd.get(p.puuid) ?? 0,
       weapons: weapons.get(p.puuid) ?? {}, atk, def,
+      party: p.party_id || undefined,
+      perf: p.performance ? {
+        score: p.performance.score, grade: p.performance.ratings?.grade ?? '', parts: p.performance.breakdown ?? {},
+        ratings: { ...p.performance.ratings?.combat, ...p.performance.ratings?.utility },
+      } : undefined,
     };
   });
 
@@ -105,7 +119,7 @@ export function compact(m: V4Match): CMatch {
     id: md.match_id, map: md.map?.name ?? '—', mapId: md.map?.id ?? '', queue: md.queue?.id ?? 'custom',
     queueName: md.queue?.name ?? 'Personalizada', started: Date.parse(md.started_at), length: md.game_length_in_ms,
     region: md.region, cluster: md.cluster, season: md.season?.short ?? '', seasonId: md.season?.id ?? '',
-    teams, rounds, players,
+    teams, rounds, players, mvp: md.mvp?.puuid || undefined, v: 2,
   };
 }
 
@@ -201,12 +215,20 @@ export async function loadStored(region: Region, name: string, tag: string, queu
 
 export async function loadMatch(region: Region, id: string): Promise<CMatch> {
   const hit = getMatch<CMatch>(id);
-  if (hit) return hit;
-  const m = await henrik<V4Match>(`/valorant/v4/match/${region}/${seg(id)}`);
-  const c = compact(m);
-  if (m.metadata?.is_completed) putMatch(c);
-  return c;
+  if (hit && hasDetail(hit)) return hit;
+  try {
+    const m = await henrik<V4Match>(`/valorant/v4/match/${region}/${seg(id)}`);
+    const c = compact(m);
+    if (m.metadata?.is_completed) putMatch(c);
+    return c;
+  } catch (e) {
+    if (hit) return hit; // older copy without Performance Score beats an error page
+    throw e;
+  }
 }
+
+/** Stored with Performance Score and party (matches saved before those were kept lack them). */
+export const hasDetail = (m: CMatch) => m.v === 2;
 
 // ---- aggregation -----------------------------------------------------------
 

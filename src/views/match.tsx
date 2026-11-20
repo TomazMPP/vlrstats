@@ -1,4 +1,5 @@
 import { Icon, Img, Shell } from './ui.js';
+import { Crown, GRADE, PerfCard, psTip } from './perf.js';
 import type { CMatch, CPlayer } from '../data.js';
 import { dateTime, fmt, img, minutes, profileUrl, ratio, tierName, tierShort } from '../lib.js';
 
@@ -33,6 +34,11 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
   const lobby = others.length ? others.reduce((n, p) => n + p.tier, 0) / others.length : null;
   const backTo = me ? profileUrl(region, me.name, me.tag) : '/';
   const label = m.queue === 'competitive' ? 'Competitivo' : m.queueName;
+  // Performance Score when the match has it, ACS otherwise
+  const hasPs = m.players.some((p) => p.perf);
+  const rank = (p: CPlayer) => (hasPs ? p.perf?.score ?? 0 : p.score);
+  const byRank = [...m.players].sort((a, b) => rank(b) - rank(a));
+  const mvp = m.mvp ?? (hasPs ? byRank[0]?.puuid : undefined);
 
   return (
     <Shell title={`${m.map} · ${label}`} region={region} head={
@@ -58,13 +64,15 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
             </div>
           )}
           {me && (
-            <div class="mine num">
-              <span class="muted">K / D / A</span><span class="muted">ACS</span><span class="muted">ADR</span><span class="muted">HS</span>
-              <b>{me.k} / {me.d} / {me.a}</b><b>{fmt.int(ratio(me.score, nr))}</b><b>{fmt.int(ratio(me.dmg, nr))}</b>
+            <div class="mine num" style={`grid-template-columns:repeat(${me.perf ? 5 : 4},auto)`}>
+              {me.perf && <span class="muted">PS</span>}<span class="muted">K / D / A</span><span class="muted">ACS</span><span class="muted">ADR</span><span class="muted">HS</span>
+              {me.perf && <b>{fmt.int(me.perf.score)}</b>}<b>{me.k} / {me.d} / {me.a}</b><b>{fmt.int(ratio(me.score, nr))}</b><b>{fmt.int(ratio(me.dmg, nr))}</b>
               <b>{fmt.pct(ratio(me.hs, me.hs + me.bs + me.ls))}</b>
             </div>
           )}
         </section>
+
+        {me?.perf && <PerfCard f={me.perf} rank={byRank.indexOf(me) + 1} of={byRank.length} mvp={mvp === me.puuid} />}
 
         {nr > 0 && (
           <section class="in" style="--d:80ms">
@@ -90,7 +98,7 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
 
         {order.map((tid, ti) => {
           const team = m.teams[tid];
-          const players = m.players.filter((p) => p.team === tid).sort((a, b) => b.score - a.score);
+          const players = m.players.filter((p) => p.team === tid).sort((a, b) => rank(b) - rank(a));
           const tWin = team?.win;
           return (
             <section class="in" style={`--d:${140 + ti * 60}ms`}>
@@ -99,8 +107,8 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
                 <span class={`tag ${tWin ? 'ink' : 'out'}`}>{tWin ? 'Vitória' : draw ? 'Empate' : 'Derrota'}</span>
               </div>
               <div class="card scroll">
-                <table style="min-width:760px">
-                  <thead><tr><th>Jogador</th><th>Rank</th><th>ACS</th><th>K</th><th>D</th><th>A</th><th>+/−</th><th>ADR</th><th>HS</th><th>FK</th></tr></thead>
+                <table style={`min-width:${hasPs ? 820 : 760}px`}>
+                  <thead><tr><th>Jogador</th><th>Rank</th>{hasPs && <th title="Performance Score">PS</th>}<th>ACS</th><th>K</th><th>D</th><th>A</th><th>+/−</th><th>ADR</th><th>HS</th><th>FK</th></tr></thead>
                   <tbody>
                     {players.map((p) => {
                       const shots = p.hs + p.bs + p.ls;
@@ -110,7 +118,7 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
                             <span class="hrow">
                               <Img src={img.agent(p.agentId)} class="ag" w={32} h={32} />
                               <span class="col" style="line-height:1.25">
-                                <a href={profileUrl(region, p.name, p.tag)} translate="no">{p.name}<span class="muted" style="font-weight:400">#{p.tag}</span></a>
+                                <a href={profileUrl(region, p.name, p.tag)} translate="no">{p.name}<span class="muted" style="font-weight:400">#{p.tag}</span>{p.puuid === mvp && <> <Crown /></>}</a>
                                 <span class="muted small" style="font-weight:400">{p.agent}</span>
                               </span>
                             </span>
@@ -121,7 +129,13 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
                               <span class="small" style="font-weight:400">{tierShort(p.tier)}</span>
                             </span>
                           </td>
-                          <td>{fmt.int(ratio(p.score, nr))}</td><td>{p.k}</td><td>{p.d}</td><td>{p.a}</td>
+                          {hasPs && (
+                            <td data-tip={psTip(p)} style="font-weight:600">
+                              {p.perf ? fmt.int(p.perf.score) : '—'}
+                              {p.perf && <span class="grade" aria-label={GRADE[p.perf.grade]}>{(GRADE[p.perf.grade] ?? '').slice(0, 1)}</span>}
+                            </td>
+                          )}
+                          <td class={hasPs ? 'muted' : undefined}>{fmt.int(ratio(p.score, nr))}</td><td>{p.k}</td><td>{p.d}</td><td>{p.a}</td>
                           <td>{fmt.signed(p.k - p.d)}</td><td>{fmt.int(ratio(p.dmg, nr))}</td>
                           <td class="muted">{shots ? fmt.pct(p.hs / shots) : '—'}</td><td>{p.fk}</td>
                         </tr>

@@ -56,7 +56,8 @@ export function invalidate(prefix: string, minAgeSec: number) {
 // ---- permanent match store -------------------------------------------------
 
 const qMatchGet = db.prepare('SELECT data FROM matches WHERE id = ?');
-const qMatchPut = db.prepare('INSERT OR IGNORE INTO matches (id, started, queue, data) VALUES (?, ?, ?, ?)');
+// replace: a later fetch may carry fields an older copy lacks (Performance Score, party)
+const qMatchPut = db.prepare('INSERT OR REPLACE INTO matches (id, started, queue, data) VALUES (?, ?, ?, ?)');
 const qLink = db.prepare('INSERT OR IGNORE INTO player_matches (puuid, id, started, queue) VALUES (?, ?, ?, ?)');
 const qRecentAll = db.prepare(
   'SELECT m.data FROM player_matches p JOIN matches m ON m.id = p.id WHERE p.puuid = ? ORDER BY p.started DESC LIMIT ?',

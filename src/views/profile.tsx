@@ -1,6 +1,7 @@
 import { Icon, Img, RiotId, Shell } from './ui.js';
 import { groupBy, lineOf, totals, type Line, type Profile } from '../data.js';
 import type { RrPoint } from '../history.js';
+import { Crown } from './perf.js';
 import { QUEUES, ago, fmt, img, profileUrl, tierName, tierShort, type Queue } from '../lib.js';
 
 export const ProfileTabs = ({ base, on }: { base: string; on: 'overview' | 'stats' | 'history' }) => (
@@ -185,7 +186,7 @@ export const ProfilePage = ({ p, queue, pages, rrs }: { p: Profile; queue: Queue
             <div class="card scroll">
               {p.matches.length ? (
                 <div style="min-width:680px">
-                  <div class="mhead"><span></span><span>Mapa · agente</span><span class="r">Placar</span><span class="r">K / D / A</span><span class="r">ACS</span><span class="r">HS</span><span class="r">RR</span><span></span></div>
+                  <div class="mhead"><span></span><span>Mapa · agente</span><span class="r">Placar</span><span class="r">K / D / A</span><span class="r" title="Performance Score; ACS nas partidas antigas">PS</span><span class="r">HS</span><span class="r">RR</span><span></span></div>
                   {p.matches.map((m) => {
                     const l = lineOf(m, a.puuid);
                     if (!l) return null;
@@ -206,7 +207,9 @@ export const ProfilePage = ({ p, queue, pages, rrs }: { p: Profile; queue: Queue
                         </span>
                         <span class="r num" style="font-weight:500">{mine ? `${mine.won}–${mine.lost}` : '—'}</span>
                         <span class="r num">{l.k} / {l.d} / {l.a}</span>
-                        <span class="r num">{fmt.int(l.score / l.rounds)}</span>
+                        {me.perf
+                          ? <span class="r num" style="font-weight:500" title={`Performance Score · ACS ${fmt.int(l.score / l.rounds)}`}>{fmt.int(me.perf.score)}{m.mvp === me.puuid && <> <Crown size={12} /></>}</span>
+                          : <span class="r num muted" title="ACS (partida salva antes do Performance Score)">{fmt.int(l.score / l.rounds)}</span>}
                         <span class="r num muted">{shots ? fmt.pct(l.hs / shots) : '—'}</span>
                         <span class="r num">{rr ? <RrDelta p={rr} /> : <span class="muted">—</span>}</span>
                         <Icon name="chevron" class="go" />
