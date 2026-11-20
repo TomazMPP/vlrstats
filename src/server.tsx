@@ -1,0 +1,171 @@
+import { Hono, type Context } from 'hono';
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { compress } from 'hono/compress';
+import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
+import { secureHeaders } from 'hono/secure-headers';
+import { ApiError, rateInfo } from './henrik.js';
+import { invalidate, recentMatches } from './db.js';
+import { loadMatch, loadProfile, loadStored, playerPrefix, weaponsAndSides, type CMatch } from './data.js';
+import { isQueue, isRegion, profileUrl, type Region } from './lib.js';
+import { Home, type Recent } from './views/home.js';
+import { ProfilePage } from './views/profile.js';
+import { StatsPage, PERIODS, type Period } from './views/stats.js';
+import { MatchPage } from './views/match.js';
+import { ApiFailure, NotFound, RateLimited } from './views/states.js';
+
+const app = new Hono();
+const PROD = process.env.NODE_ENV === 'production';
+
+app.use(compress());
+app.use(secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    imgSrc: ["'self'", 'https://media.valorant-api.com', 'data:'],
+    styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+    fontSrc: ['https://fonts.gstatic.com'],
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    scriptSrcAttr: ["'unsafe-inline'"],
+    formAction: ["'self'"],
+    frameAncestors: ["'none'"],
+  },
+  crossOriginEmbedderPolicy: false,
+}));
+
+app.use('/styles.css', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=31536000, immutable'); });
+app.use('/favicon.svg', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=604800'); });
+app.use('/styles.css', serveStatic({ root: './public' }));
+app.use('/favicon.svg', serveStatic({ root: './public' }));
+
+// ---- recent searches (cookie, no server state) ------------------------------
+
+const RECENT = 'recent';
+function readRecent(c: Context): Recent[] {
+  try {
+    const raw = getCookie(c, RECENT);
+    if (!raw) return [];
+    const list = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    return Array.isArray(list) ? list.filter((x) => x && typeof x.n === 'string' && typeof x.t === 'string' && isRegion(x.r)).slice(0, 6) : [];
+  } catch {
+    return [];
+  }
+}
+function pushRecent(c: Context, e: Recent) {
+  const same = (x: Recent) => x.r === e.r && x.n.toLowerCase() === e.n.toLowerCase() && x.t.toLowerCase() === e.t.toLowerCase();
+  const list = [e, ...readRecent(c).filter((x) => !same(x))].slice(0, 6);
+  setCookie(c, RECENT, Buffer.from(JSON.stringify(list)).toString('base64url'), {
+    path: '/', maxAge: 60 * 60 * 24 * 180, httpOnly: true, sameSite: 'Lax', secure: PROD,
+  });
+}
+
+// ---- params -------------------------------------------------------------------
+
+/** Riot names: 3–16 chars, tags 3–5. We're lenient but cap length and strip '#'. */
+function parsePlayer(c: Context) {
+  const region = c.req.param('region') ?? '';
+  const name = (c.req.param('name') ?? '').trim();
+  const tag = (c.req.param('tag') ?? '').trim();
+  if (!isRegion(region) || !name || !tag || name.length > 16 || tag.length > 5 || /[#/]/.test(name + tag)) return null;
+  return { region, name, tag };
+}
+
+function fail(c: Context, e: unknown, kind: 'player' | 'match', riotid?: string) {
+  if (e instanceof ApiError) {
+    if (e.status === 404) return c.html(<NotFound what={kind} riotid={riotid} />, 404);
+    if (e.status === 429) return c.html(<RateLimited wait={e.retryAfter || 30} retry={c.req.url} />, 429);
+  }
+  console.error(`[error] ${c.req.method} ${c.req.path}`, e instanceof Error ? e.message : e);
+  return c.html(<ApiFailure retry={c.req.url} />, 502);
+}
+
+// ---- routes -------------------------------------------------------------------
+
+app.get('/', (c) => {
+  const region = c.req.query('region');
+  return c.html(<Home recent={readRecent(c)} rate={rateInfo()} region={region && isRegion(region) ? region : readRecent(c)[0]?.r ?? 'br'}
+    value={c.req.query('riotid')} hint={c.req.query('e') === '1' ? 'Use o formato Nome#TAG, com o # antes do TAG.' : undefined} />);
+});
+
+app.get('/search', (c) => {
+  const raw = (c.req.query('riotid') ?? '').trim();
+  const region = c.req.query('region') ?? 'br';
+  const i = raw.lastIndexOf('#');
+  const name = i > 0 ? raw.slice(0, i).trim() : '';
+  const tag = i > 0 ? raw.slice(i + 1).trim() : '';
+  if (!name || !tag || name.length > 16 || tag.length > 5 || !isRegion(region)) {
+    return c.redirect(`/?e=1&region=${encodeURIComponent(region)}&riotid=${encodeURIComponent(raw.slice(0, 32))}`);
+  }
+  return c.redirect(profileUrl(region, name, tag));
+});
+
+app.post('/recent/clear', (c) => {
+  deleteCookie(c, RECENT, { path: '/' });
+  return c.redirect('/', 303);
+});
+
+app.get('/p/:region/:name/:tag', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return c.html(<NotFound what="player" />, 404);
+  const q = c.req.query('queue');
+  const queue = isQueue(q) ? q : 'competitive';
+  const pages = Math.min(5, Math.max(1, Math.ceil(Number(c.req.query('n') ?? 10) / 10) || 1));
+  try {
+    const p = await loadProfile(pl.region, pl.name, pl.tag, queue, pages);
+    pushRecent(c, { r: pl.region, n: p.account.name, t: p.account.tag, tier: p.mmr?.current.tier.id ?? 0, card: p.account.card ?? '', at: Date.now() });
+    return c.html(<ProfilePage p={p} queue={queue} pages={pages} />);
+  } catch (e) {
+    return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
+  }
+});
+
+app.post('/p/:region/:name/:tag/refresh', (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return c.redirect('/', 303);
+  // only drop entries older than 30 s, so hammering the button can't burn the rate limit
+  invalidate(playerPrefix(pl.region, pl.name, pl.tag) + ':', 30);
+  return c.redirect(profileUrl(pl.region, pl.name, pl.tag), 303);
+});
+
+app.get('/p/:region/:name/:tag/stats', async (c) => {
+  const pl = parsePlayer(c);
+  if (!pl) return c.html(<NotFound what="player" />, 404);
+  const per = c.req.query('period');
+  const period: Period = per && per in PERIODS ? (per as Period) : '50';
+  try {
+    const [p, stored] = await Promise.all([
+      loadProfile(pl.region, pl.name, pl.tag, 'competitive'),
+      loadStored(pl.region, pl.name, pl.tag, 'competitive'),
+    ]);
+    const all = (stored.value ?? []).sort((a, b) => b.started - a.started);
+    const season = all[0]?.seasonId ?? '';
+    const lines = period === '20' ? all.slice(0, 20) : period === 'act' ? all.filter((l) => l.seasonId === season) : all;
+    const ids = new Set(lines.map((l) => l.id));
+    const detailed = recentMatches<CMatch>(p.account.puuid, 'competitive', 200).filter((m) => ids.has(m.id));
+    const seasonShort = p.matches.find((m) => m.seasonId === season)?.season ?? '';
+    return c.html(<StatsPage region={pl.region} name={p.account.name} tag={p.account.tag} card={p.account.card}
+      tier={p.mmr?.current.tier.id ?? 0} lines={lines} period={period} season={seasonShort}
+      detail={weaponsAndSides(detailed, p.account.puuid)} warn={p.warn || stored.warn} />);
+  } catch (e) {
+    return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
+  }
+});
+
+app.get('/m/:region/:id', async (c) => {
+  const region = c.req.param('region');
+  const id = c.req.param('id');
+  if (!isRegion(region) || !/^[0-9a-f-]{36}$/i.test(id)) return c.html(<NotFound what="match" />, 404);
+  try {
+    const m = await loadMatch(region as Region, id);
+    const me = m.players.find((p) => p.puuid === c.req.query('p'));
+    c.header('Cache-Control', 'private, max-age=300');
+    return c.html(<MatchPage m={m} me={me} region={region} />);
+  } catch (e) {
+    return fail(c, e, 'match');
+  }
+});
+
+app.notFound((c) => c.html(<NotFound what="page" />, 404));
+app.onError((e, c) => fail(c, e, 'player'));
+
+const port = Number(process.env.PORT ?? 3000);
+serve({ fetch: app.fetch, port }, () => console.log(`vlrstats on http://localhost:${port}`));
