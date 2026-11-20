@@ -314,3 +314,21 @@ window.SK = (() => {
     }, 160);
   });
 })();
+
+// Recap image: on phones, hand the file to the share sheet (save to photos,
+// WhatsApp, Instagram); elsewhere the link downloads it (Content-Disposition).
+(() => {
+  document.addEventListener('click', async (e) => {
+    const a = e.target instanceof Element ? e.target.closest('a[data-share-img]') : null;
+    if (!a || !matchMedia('(pointer: coarse)').matches || !navigator.canShare) return;
+    e.preventDefault();
+    try {
+      const blob = await (await fetch(a.href)).blob();
+      const file = new File([blob], a.getAttribute('download') || 'vlrstats.png', { type: 'image/png' });
+      if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
+      else location.href = a.href;
+    } catch (err) {
+      if (err && err.name !== 'AbortError') location.href = a.href;
+    }
+  });
+})();

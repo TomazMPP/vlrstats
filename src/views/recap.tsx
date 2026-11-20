@@ -35,7 +35,7 @@ export const RecapPage = ({ region, name, tag, card, r }: { region: string; name
               <img src={png} width={1200} height={630} alt={`Resumo do ato ${a.short} de ${name}#${tag}: ${desc}`} />
             </figure>
             <div class="hrow in recap-act" style="--d:100ms">
-              <a class="btn btn-ink" href={png} download={`vlrstats-${name}-${a.short}.png`}><Icon name="down" size={14} />Baixar imagem</a>
+              <a class="btn btn-ink" href={`${png}?dl=${encodeURIComponent(`vlrstats-${name}-${a.short}`)}`} download={`vlrstats-${name}-${a.short}.png`} data-share-img><Icon name="down" size={14} />Baixar imagem</a>
               <button class="btn" type="button" data-copy={`${SITE}${path}`}
                 onclick="navigator.clipboard.writeText(this.dataset.copy).then(()=>{this.lastChild.textContent='Link copiado'})">
                 <Icon name="copy" size={14} /><span>Copiar link</span>

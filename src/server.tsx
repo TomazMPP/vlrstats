@@ -301,8 +301,13 @@ app.get('/p/:region/:name/:tag/recap', async (c) => {
   }
 });
 
-const sendPng = (c: Context, buf: Buffer, maxAge: number) =>
-  c.body(new Uint8Array(buf), 200, { 'Content-Type': 'image/png', 'Cache-Control': `public, max-age=${maxAge}` });
+/** `?dl=<name>` forces a download (browsers that ignore <a download>: iOS Safari, in-app webviews). */
+function sendPng(c: Context, buf: Buffer, maxAge: number) {
+  const h: Record<string, string> = { 'Content-Type': 'image/png', 'Cache-Control': `public, max-age=${maxAge}` };
+  const dl = (c.req.query('dl') ?? '').replace(/[^\p{L}\p{N}_.-]/gu, '').slice(0, 60);
+  if (dl) h['Content-Disposition'] = `attachment; filename="vlrstats.png"; filename*=UTF-8''${encodeURIComponent(dl.endsWith('.png') ? dl : `${dl}.png`)}`;
+  return c.body(new Uint8Array(buf), 200, h);
+}
 /** Any failure (unknown player, API down) still answers with the generic card, so previews never break. */
 async function ogImage(c: Context, key: string, ttl: number, draw: () => Promise<string>) {
   try {
