@@ -1,4 +1,4 @@
-import { Footer, Icon, Img, Layout, Logo } from './ui.js';
+import { Footer, Icon, Img, Layout, Logo, ThemeToggle } from './ui.js';
 import { REGIONS, ago, img, profileUrl, tierName } from '../lib.js';
 
 export type Recent = { r: string; n: string; t: string; tier: number; card: string; at: number };
@@ -10,6 +10,7 @@ export const Home = ({ recent, region, value, hint }: {
     <div class="wrap page">
       <header class="top">
         <a class="brand" href="/"><Logo />vlrstats</a>
+        <ThemeToggle />
       </header>
 
       <main class="home">

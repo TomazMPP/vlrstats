@@ -2,7 +2,7 @@ import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 import { REGIONS } from '../lib.js';
 
-export const ASSET_V = '1';
+export const ASSET_V = '2';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">
@@ -27,6 +27,8 @@ const paths = {
   user: <><circle cx="10" cy="7" r="3" /><path d="M4 17a6 6 0 0 1 12 0" /></>,
   clock: <><circle cx="10" cy="10" r="6.5" /><path d="M10 6.5V10l2.5 1.5" /></>,
   alert: <><path d="M10 3.5l7 12.5H3z" /><path d="M10 8.5v3M10 14h.01" /></>,
+  sun: <><circle cx="10" cy="10" r="3.2" /><path d="M10 2.5v1.6M10 15.9v1.6M2.5 10h1.6M15.9 10h1.6M4.7 4.7l1.1 1.1M14.2 14.2l1.1 1.1M4.7 15.3l1.1-1.1M14.2 5.8l1.1-1.1" /></>,
+  moon: <path d="M16 12.2A6.5 6.5 0 0 1 7.8 4a6.5 6.5 0 1 0 8.2 8.2z" />,
   info: <><circle cx="10" cy="10" r="6.5" /><path d="M10 9v4M10 6.5h.01" /></>,
 } as const;
 
@@ -57,10 +59,19 @@ export const MiniSearch = ({ region = 'br' }: { region?: string }) => (
   </form>
 );
 
+export const ThemeToggle = () => (
+  <button class="btn iconbtn" type="button" data-theme-toggle aria-label="Alternar tema claro ou escuro" title="Tema claro/escuro">
+    <Icon name="moon" class="i-moon" /><Icon name="sun" class="i-sun" />
+  </button>
+);
+
+/** Applies the saved theme (or the system one) before first paint and wires the toggle. */
+const THEME_JS = `(()=>{const d=document.documentElement,m=matchMedia('(prefers-color-scheme: dark)');let s=null;try{s=localStorage.getItem('theme')}catch{}const set=t=>{d.dataset.theme=t};set(s||(m.matches?'dark':'light'));m.addEventListener('change',e=>{if(!s)set(e.matches?'dark':'light')});addEventListener('click',e=>{if(!e.target.closest('[data-theme-toggle]'))return;s=d.dataset.theme==='dark'?'light':'dark';set(s);try{localStorage.setItem('theme',s)}catch{}})})()`;
+
 export const Header = ({ children, region }: { children?: Child; region?: string }) => (
   <header class="top">
     {children ?? <a class="brand" href="/"><Logo />vlrstats</a>}
-    <MiniSearch region={region} />
+    <div class="hrow" style="gap:8px"><MiniSearch region={region} /><ThemeToggle /></div>
   </header>
 );
 
@@ -77,6 +88,7 @@ export const Layout: FC<{ title?: string; children: Child; noindex?: boolean }> 
     <html lang="pt-BR">
       <head>
         <meta charset="utf-8" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_JS }} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title ? `${title} · vlrstats` : 'vlrstats · Suas partidas de Valorant, analisadas'}</title>
         <meta name="description" content="Busque por Riot ID e veja rank, histórico de partidas e desempenho por agente, mapa e arma." />
