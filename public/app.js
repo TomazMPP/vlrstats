@@ -48,7 +48,7 @@ window.SK = (() => {
     <section>${sh('110px', b('200px', 10))}${chart(220)}</section>
     <section>${sh('96px', b('200px', 10))}${chart(260)}</section></div>`;
   const stats = () => `<div class="stack"><div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
-    <div class="col" style="gap:10px">${b('180px', 26)}${b('220px', 10)}</div><div class="hrow" style="gap:8px;flex-wrap:wrap">${r('284px', 36, 12)}${r('130px', 36, 12)}</div></div>${statsMain()}</div>`;
+    <div class="col" style="gap:10px">${b('180px', 26)}${b('220px', 10)}</div><div class="hrow" style="gap:8px;flex-wrap:wrap">${r('284px', 36, 12)}${r('172px', 36, 12)}</div></div>${statsMain()}</div>`;
 
   // ---- match
   const prow = (i) => `<div class="mrow sk-row" style="grid-template-columns:minmax(0,1.8fr) repeat(8,minmax(0,.6fr))"><span class="hrow">${r('32px', 32, 8)}<span class="col" style="gap:7px;flex:1">${b(pick(W1, i), 11)}${b('36%', 9)}</span></span>`

@@ -3,8 +3,10 @@ import { ProfileTabs } from './profile.js';
 import { groupBy, totals, type Line, type weaponsAndSides } from '../data.js';
 import { fmt, img, profileUrl, ratio, tierName } from '../lib.js';
 
-export type Period = '20' | '50' | 'act';
-export const PERIODS: Record<Period, string> = { '20': '20', '50': '50', act: 'Ato' };
+const since = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" });
+
+export type Period = '20' | '50' | 'act' | 'all';
+export const PERIODS: Record<Period, string> = { '20': '20', '50': '50', act: 'Ato', all: 'Tudo' };
 
 type Props = {
   region: string; name: string; tag: string; card: string; tier: number;
@@ -33,7 +35,7 @@ export const StatsPage = (s: Props) => {
           <div>
             <h1 class="title">Estatísticas</h1>
             <p class="sub num" style="margin-top:4px">
-              Competitivo · {t.games} partidas{s.period === 'act' && s.season ? ` · ${s.season.toUpperCase()}` : ''}
+              Competitivo · {fmt.int(t.games)} partidas{s.period === 'act' && s.season ? ` · ${s.season.toUpperCase()}` : ''}{s.period === 'all' && s.lines.length ? ` · desde ${since.format(s.lines[s.lines.length - 1].started).replace(/\./g, "").replace(/ de /g, " ")}` : ''}
               {s.warn ? ' · dados podem estar desatualizados' : ''}
             </p>
           </div>

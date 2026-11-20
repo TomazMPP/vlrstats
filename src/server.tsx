@@ -210,15 +210,18 @@ app.get('/p/:region/:name/:tag/stats', async (c) => {
     ]);
     const fixed = regionFix(c, pl, p, '/stats');
     if (fixed) return c.redirect(fixed);
-    const all = (stored.value ?? []).sort((a, b) => b.started - a.started);
-    const season = all[0]?.seasonId ?? '';
+    const recent = (stored.value ?? []).sort((a, b) => b.started - a.started);
+    const season = recent[0]?.seasonId ?? '';
+    // 'act' and 'all' need more than the last 50: use the persisted history
+    const deep = period === 'act' || period === 'all' ? await loadHistory(pl.region, p.account.name, p.account.tag, p.account.puuid) : null;
+    const all = deep ? deep.lines.slice().sort((a, b) => b.started - a.started) : recent;
     const lines = period === '20' ? all.slice(0, 20) : period === 'act' ? all.filter((l) => l.seasonId === season) : all;
     const ids = new Set(lines.map((l) => l.id));
     const detailed = recentMatches<CMatch>(p.account.puuid, 'competitive', 200).filter((m) => ids.has(m.id));
     const seasonShort = p.matches.find((m) => m.seasonId === season)?.season ?? '';
     return c.html(<StatsPage region={pl.region} name={p.account.name} tag={p.account.tag} card={p.account.card}
       tier={p.mmr?.current.tier.id ?? 0} lines={lines} period={period} season={seasonShort}
-      detail={weaponsAndSides(detailed, p.account.puuid)} warn={p.warn || stored.warn} />);
+      detail={weaponsAndSides(detailed, p.account.puuid)} warn={p.warn || stored.warn || !!deep?.warn} />);
   } catch (e) {
     return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
   }
