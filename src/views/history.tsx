@@ -15,6 +15,7 @@ const tz = 'America/Sao_Paulo';
 const dShort = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: tz });
 const dMonth = new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
 const dDay = new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const monthYear = (ms: number) => { const p = dShort.formatToParts(ms); return `${p.find((x) => x.type === 'month')!.value.replace('.', '')} ${p.find((x) => x.type === 'year')!.value}`; };
 const day = (ms: number) => dShort.format(ms).replace(/\./g, '').replace(/ de /g, ' ');
 const monthLabel = (key: string) => dMonth.format(Date.parse(key + '-15')).replace(/\./g, '').replace(' de ', '/');
 const n1 = (v: number) => v.toFixed(1);
@@ -306,7 +307,7 @@ export const HistoryPage = (s: Props) => {
           <div class="sh"><h2>Recordes</h2></div>
           <div class="grid3">
             <div class="card kpi"><b>{rec.streak ? `${rec.streak.n} vitórias` : '—'}</b><span class="num">Maior sequência{rec.streak ? ` · ${day(rec.streak.at)}` : ''}</span></div>
-            {rec.gain ? <a class="card kpi lift" href={matchUrl(rec.gain.id)}><b>{fmt.signed(rec.gain.change)} RR</b><span class="num">Maior ganho de RR desde {day(s.rr[0].at)} · {rec.gain.map}</span></a>
+            {rec.gain ? <a class="card kpi lift" href={matchUrl(rec.gain.id)}><b>{fmt.signed(rec.gain.change)} RR</b><span class="num">Maior ganho de RR* · {rec.gain.map}</span></a>
               : <div class="card kpi"><b>—</b><span>Maior ganho de RR</span></div>}
             {rec.acs ? <a class="card kpi lift" href={matchUrl(rec.acs.id)}><b>{fmt.int(ratio(rec.acs.score, rec.acs.rounds))} ACS</b><span class="num">Melhor partida · {rec.acs.agent} · {rec.acs.map}</span></a>
               : <div class="card kpi"><b>—</b><span>Melhor ACS</span></div>}
@@ -329,7 +330,7 @@ export const HistoryPage = (s: Props) => {
         </section>
 
         <section class="in" style="--d:140ms">
-          <div class="sh"><h2>Curva de RR</h2>
+          <div class="sh"><h2>Curva de RR{s.rr.length > 0 && '*'}</h2>
             <span class="hrow small muted" style="gap:14px">
               <span class="hrow" style="gap:6px"><i class="lgd-dot"></i>Subiu de divisão</span>
               <span class="hrow" style="gap:6px"><i class="lgd-dot bad"></i>Caiu de divisão</span>
@@ -337,7 +338,7 @@ export const HistoryPage = (s: Props) => {
           </div>
           {s.rr.length > 1 ? <div class="card pad scroll"><RrChart rr={s.rr} /></div>
             : <div class="card empty">Poucas partidas ranqueadas com RR registrado.</div>}
-          {s.rr.length > 0 && <p class="small muted num" style="margin-top:10px">A API só guarda o RR de {s.rr.length} partidas, desde {day(s.rr[0].at)}. Daqui pra frente o vlrstats guarda cada partida nova.</p>}
+          {s.rr.length > 0 && <p class="small muted num" style="margin-top:10px">*Dados a partir de {monthYear(s.rr[0].at)}</p>}
         </section>
 
         <section class="in" style="--d:180ms">
