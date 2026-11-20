@@ -18,6 +18,10 @@ export const StatsPage = (s: Props) => {
   const t = totals(s.lines);
   const agents = groupBy(s.lines, 'agent');
   const maps = groupBy(s.lines, 'map').sort((a, b) => b.winRate - a.winRate || b.games - a.games);
+  // agent win rate on each map, maps by games played
+  const byMap = groupBy(s.lines, 'map').sort((a, b) => b.games - a.games).map((m) => ({
+    ...m, agents: groupBy(s.lines.filter((l) => l.map === m.name), 'agent').sort((a, b) => b.games - a.games || b.winRate - a.winRate),
+  }));
   const { weapons, atk, def } = s.detail;
   const topKills = weapons[0]?.kills ?? 0;
   const totalKills = weapons.reduce((n, w) => n + w.kills, 0);
@@ -112,6 +116,33 @@ export const StatsPage = (s: Props) => {
                 </div>
               </section>
             </div>
+
+            <section class="in" style="--d:170ms">
+              <div class="sh"><h2>Agentes por mapa</h2><span class="muted small">% de vitória · menos de 3 partidas em cinza</span></div>
+              <div class="amaps">
+                {byMap.map((m) => (
+                  <div class="card clip amap">
+                    <div class="amap-head">
+                      {m.id ? <Img src={img.map(m.id)} class="amap-img" w={456} h={100} /> : <span class="amap-img hatch"></span>}
+                      <span class="amap-title">
+                        <b>{m.name}</b>
+                        <span class="num">{fmt.pct(m.winRate)} · {m.wins}V {m.losses}D</span>
+                      </span>
+                    </div>
+                    <div class="amap-list">
+                      {m.agents.map((a) => (
+                        <div class={`amap-row${a.games < 3 ? ' few' : ''}`} title={a.games < 3 ? 'Amostra pequena' : undefined}>
+                          <span class="hrow" style="gap:8px;min-width:0"><Img src={img.agent(a.id)} class="ag ag-sm" w={24} h={24} /><span class="ell">{a.name}</span></span>
+                          <span class="num small muted">{a.wins}V {a.losses}D</span>
+                          <span class="num amap-pct">{fmt.pct(a.winRate)}</span>
+                          <div class="bar" role="img" aria-label={`${fmt.pct(a.winRate)} de vitória em ${a.games} partidas`}><i style={`width:${(a.winRate * 100).toFixed(1)}%`}></i></div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
 
             {weapons.length > 0 && (
               <section class="in" style="--d:200ms">
