@@ -247,3 +247,70 @@ window.SK = (() => {
   addEventListener('scroll', hide, { passive: true });
   document.documentElement.addEventListener('pointerleave', hide);
 })();
+
+// Favorites (localStorage): the star on a profile, the list on the home page.
+(() => {
+  const KEY = 'fav';
+  const read = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+  const write = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v.slice(0, 20))); } catch { /* private mode */ } };
+  window.FAV = { read };
+
+  const btn = document.querySelector('[data-fav]');
+  if (btn) {
+    let me; try { me = JSON.parse(btn.dataset.fav); } catch { return; }
+    const same = (f) => f.id.toLowerCase() === me.id.toLowerCase();
+    const paint = () => { const on = read().some(same); btn.setAttribute('aria-pressed', String(on)); btn.lastElementChild.textContent = on ? 'Favorito' : 'Favoritar'; };
+    const list = read(), i = list.findIndex(same);
+    if (i >= 0) { list[i] = me; write(list); } // keep rank/card fresh
+    btn.hidden = false; paint();
+    btn.addEventListener('click', () => {
+      const l = read();
+      write(l.some(same) ? l.filter((f) => !same(f)) : [me, ...l]);
+      paint();
+    });
+  }
+
+  const box = document.getElementById('favs');
+  const favs = read().filter((f) => typeof f.href === 'string' && f.href.startsWith('/p/') && typeof f.id === 'string');
+  if (box && favs.length) {
+    const card = box.querySelector('.card');
+    for (const f of favs) {
+      const a = document.createElement('a'); a.className = 'row'; a.href = f.href;
+      const av = document.createElement(f.card && f.card.startsWith('https://media.valorant-api.com/') ? 'img' : 'span');
+      av.className = 'av'; if (av.tagName === 'IMG') { av.src = f.card; av.alt = ''; av.width = av.height = 36; av.loading = 'lazy'; } else av.classList.add('hatch');
+      const col = document.createElement('span'); col.className = 'col'; col.style.flex = '1 1 auto';
+      const k = f.id.lastIndexOf('#');
+      const nm = document.createElement('span'); nm.className = 'ell'; nm.style.fontWeight = '500'; nm.translate = false; nm.textContent = f.id.slice(0, k);
+      const tg = document.createElement('span'); tg.className = 'muted'; tg.textContent = f.id.slice(k); nm.append(tg);
+      const sub = document.createElement('span'); sub.className = 'small muted'; sub.textContent = f.sub || '';
+      col.append(nm, sub); a.append(av, col); card.append(a);
+    }
+    box.hidden = false;
+  }
+})();
+
+// Riot ID suggestions: favorites first, then players others viewed most.
+(() => {
+  let t = 0, last = '';
+  const fill = (dl, ids) => { dl.replaceChildren(...ids.slice(0, 8).map((id) => { const o = document.createElement('option'); o.value = id; return o; })); };
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || el.getAttribute('list') !== 'suggest') return;
+    const dl = document.getElementById('suggest');
+    const q = el.value.trim();
+    if (!dl || q === last) return;
+    last = q;
+    clearTimeout(t);
+    if (q.length < 2) return fill(dl, []);
+    const low = q.toLowerCase();
+    const favs = (window.FAV?.read() ?? []).map((f) => f.id).filter((id) => typeof id === 'string' && id.toLowerCase().startsWith(low));
+    fill(dl, favs);
+    t = setTimeout(() => {
+      fetch('/api/suggest?q=' + encodeURIComponent(q)).then((r) => (r.ok ? r.json() : [])).then((ids) => {
+        if (last !== q) return;
+        const seen = new Set(favs.map((x) => x.toLowerCase()));
+        fill(dl, [...favs, ...ids.filter((x) => typeof x === 'string' && !seen.has(x.toLowerCase()))]);
+      }).catch(() => {});
+    }, 160);
+  });
+})();

@@ -26,7 +26,8 @@ export const Home = ({ recent, value, hint }: {
               <div class="field">
                 <Icon name="search" />
                 <input class="input" id="rid" name="riotid" type="text" autocomplete="off" spellcheck={false}
-                  placeholder="Nome#TAG" required autofocus value={value} aria-describedby="rid-hint" />
+                  placeholder="Nome#TAG" required autofocus value={value} aria-describedby="rid-hint" list="suggest" />
+                <datalist id="suggest"></datalist>
               </div>
             </div>
             <button class="btn btn-ink btn-lg" type="submit">Buscar<Icon name="arrow" /></button>
@@ -35,6 +36,11 @@ export const Home = ({ recent, value, hint }: {
             {hint ?? <>O TAG fica depois do #. Ex.: <span class="num" translate="no">nome#br1</span></>}
           </p>
         </form>
+
+        <section id="favs" class="in" style="--d:120ms;display:flex;flex-direction:column;gap:10px" hidden>
+          <h2 style="font-size:15px;font-weight:600">Favoritos</h2>
+          <div class="card clip"></div>
+        </section>
 
         {recent.length > 0 && (
           <section class="in" style="--d:160ms;display:flex;flex-direction:column;gap:10px">

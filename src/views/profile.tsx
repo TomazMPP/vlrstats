@@ -111,6 +111,10 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                 onclick="navigator.clipboard.writeText(this.dataset.copy).then(()=>{this.lastChild.textContent='Copiado'})">
                 <Icon name="copy" size={14} /><span>Copiar ID</span>
               </button>
+              <button class="btn fav" type="button" aria-pressed="false" hidden
+                data-fav={JSON.stringify({ id: `${a.name}#${a.tag}`, href: profileUrl(p.region, a.name, a.tag), card: a.card ? img.card(a.card) : '', sub: `${cur && cur.tier.id >= 3 ? tierName(cur.tier.id) : 'Sem rank'} · ${p.region.toUpperCase()}` })}>
+                <Icon name="star" size={14} /><span>Favoritar</span>
+              </button>
               <a class="btn" href={`/compare?a=${encodeURIComponent(`${a.name}#${a.tag}`)}`}><Icon name="user" size={14} />Comparar</a>
             </div>
             {p.warn && <p class="note"><Icon name="info" size={14} />Alguns dados podem estar desatualizados.</p>}

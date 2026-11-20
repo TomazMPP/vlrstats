@@ -7,7 +7,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
-import { invalidate, recentMatches, sharedMatches } from './db.js';
+import { invalidate, recentMatches, sharedMatches, suggest } from './db.js';
 import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, type CMatch } from './data.js';
 import { isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { Home, type Recent } from './views/home.js';
@@ -145,6 +145,12 @@ function regionFix(c: Context, pl: { region: Region }, p: { matches: { cluster: 
   if (!where || where === pl.region) return null;
   return profileUrl(where, p.account.name, p.account.tag) + suffix + new URL(c.req.url).search;
 }
+
+app.get('/api/suggest', (c) => {
+  const q = (c.req.query('q') ?? '').trim().slice(0, 22);
+  c.header('Cache-Control', 'public, max-age=300');
+  return c.json(q.length >= 2 ? suggest(q) : []);
+});
 
 /** "Nome#TAG" from a query value, or null. */
 function parseId(raw: string | undefined) {

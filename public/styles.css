@@ -316,3 +316,6 @@ a.lift:hover { box-shadow: var(--e2), var(--top); transform: translateY(-1px); }
   .cmp-form .input { width: 100%; }
   .cmp-agents { grid-template-columns: 1fr; }
 }
+
+/* Favorite toggle */
+.fav[aria-pressed="true"] svg { fill: currentColor; }

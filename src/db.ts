@@ -91,6 +91,15 @@ export function sharedMatches<T>(a: string, b: string, limit = 100): T[] {
   return (qShared.all(b, a, limit) as { data: string }[]).map((r) => JSON.parse(r.data));
 }
 
+const qSuggest = db.prepare(
+  "SELECT player, region, COUNT(*) n FROM hits WHERE at >= ? AND status = 200 AND kind IN ('profile','stats','history') AND player LIKE ? ESCAPE '!' GROUP BY lower(player), region HAVING n >= 2 ORDER BY n DESC LIMIT 8",
+);
+/** Most-viewed players (last 30 days) whose Riot ID starts with q. */
+export function suggest(q: string) {
+  const like = q.replace(/[!%_]/g, (c) => '!' + c) + '%';
+  return (qSuggest.all(Date.now() - 30 * 86400_000, like) as { player: string; region: string }[]).map((r) => r.player);
+}
+
 export function recentMatches<T>(puuid: string, queue: string | null, limit: number): T[] {
   const rows = (queue ? qRecentQueue.all(puuid, queue, limit) : qRecentAll.all(puuid, limit)) as { data: string }[];
   return rows.map((r) => JSON.parse(r.data));

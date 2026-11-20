@@ -1,7 +1,7 @@
 import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 
-export const ASSET_V = '8';
+export const ASSET_V = '9';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">
@@ -28,6 +28,7 @@ const paths = {
   alert: <><path d="M10 3.5l7 12.5H3z" /><path d="M10 8.5v3M10 14h.01" /></>,
   sun: <><circle cx="10" cy="10" r="3.2" /><path d="M10 2.5v1.6M10 15.9v1.6M2.5 10h1.6M15.9 10h1.6M4.7 4.7l1.1 1.1M14.2 14.2l1.1 1.1M4.7 15.3l1.1-1.1M14.2 5.8l1.1-1.1" /></>,
   moon: <path d="M16 12.2A6.5 6.5 0 0 1 7.8 4a6.5 6.5 0 1 0 8.2 8.2z" />,
+  star: <path d="M10 2.8l2.2 4.5 4.9.7-3.55 3.47.84 4.9L10 14.06l-4.39 2.31.84-4.9L2.9 8l4.9-.7z" />,
   info: <><circle cx="10" cy="10" r="6.5" /><path d="M10 9v4M10 6.5h.01" /></>,
 } as const;
 
@@ -50,7 +51,8 @@ export const MiniSearch = () => (
   <form class="mini" role="search" action="/search" method="get">
     <label for="q" class="sr">Buscar jogador</label>
     <Icon name="search" />
-    <input id="q" name="riotid" type="text" placeholder="Nome#TAG" autocomplete="off" spellcheck={false} required />
+    <input id="q" name="riotid" type="text" placeholder="Nome#TAG" autocomplete="off" spellcheck={false} required list="suggest" />
+    <datalist id="suggest"></datalist>
   </form>
 );
 
