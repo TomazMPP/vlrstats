@@ -30,6 +30,8 @@ export const img = {
 export const REGIONS = ['br', 'latam', 'na', 'eu', 'ap', 'kr'] as const;
 export type Region = (typeof REGIONS)[number];
 export const isRegion = (r: string): r is Region => (REGIONS as readonly string[]).includes(r);
+/** Riot shard: BR and LATAM accounts live on the NA shard, so the API reports them as "na". */
+export const shardOf = (r: Region) => (r === 'br' || r === 'latam' ? 'na' : r);
 
 export const QUEUES = { competitive: 'Competitivo', unrated: 'Sem rank', all: 'Todas' } as const;
 export type Queue = keyof typeof QUEUES;

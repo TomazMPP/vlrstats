@@ -6,8 +6,8 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { secureHeaders } from 'hono/secure-headers';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches } from './db.js';
-import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionOf, weaponsAndSides, type CMatch } from './data.js';
-import { isQueue, isRegion, profileUrl, type Region } from './lib.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, type CMatch } from './data.js';
+import { isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { Home, type Recent } from './views/home.js';
 import { ProfilePage } from './views/profile.js';
 import { StatsPage, PERIODS, type Period } from './views/stats.js';
@@ -109,8 +109,17 @@ app.get('/search', async (c) => {
 async function homeUrl(c: Context, pl: { region: Region; name: string; tag: string }, suffix = '') {
   const { value: a } = await findAccount(pl.name, pl.tag);
   const home = regionOf(a);
-  if (!home || home === pl.region) return null;
+  // same shard (BR/LATAM/NA): the match clusters decide, see regionFix
+  if (!home || shardOf(home) === shardOf(pl.region)) return null;
   return profileUrl(home, a.name, a.tag) + suffix + new URL(c.req.url).search;
+}
+
+/** On the NA shard, the URL region should match where the player's matches are played. */
+function regionFix(c: Context, pl: { region: Region }, p: { matches: { cluster: string }[]; account: { name: string; tag: string } }, suffix = '') {
+  if (shardOf(pl.region) !== 'na') return null;
+  const where = regionFromMatches(p.matches);
+  if (!where || where === pl.region) return null;
+  return profileUrl(where, p.account.name, p.account.tag) + suffix + new URL(c.req.url).search;
 }
 
 app.post('/recent/clear', (c) => {
@@ -128,6 +137,8 @@ app.get('/p/:region/:name/:tag', async (c) => {
     const moved = await homeUrl(c, pl);
     if (moved) return c.redirect(moved);
     const p = await loadProfile(pl.region, pl.name, pl.tag, queue, pages);
+    const fixed = regionFix(c, pl, p);
+    if (fixed) return c.redirect(fixed);
     pushRecent(c, { r: pl.region, n: p.account.name, t: p.account.tag, tier: p.mmr?.current.tier.id ?? 0, card: p.account.card ?? '', at: Date.now() });
     return c.html(<ProfilePage p={p} queue={queue} pages={pages} />);
   } catch (e) {
@@ -156,6 +167,8 @@ app.get('/p/:region/:name/:tag/stats', async (c) => {
       loadProfile(pl.region, pl.name, pl.tag, 'competitive'),
       loadStored(pl.region, pl.name, pl.tag, 'competitive'),
     ]);
+    const fixed = regionFix(c, pl, p, '/stats');
+    if (fixed) return c.redirect(fixed);
     const all = (stored.value ?? []).sort((a, b) => b.started - a.started);
     const season = all[0]?.seasonId ?? '';
     const lines = period === '20' ? all.slice(0, 20) : period === 'act' ? all.filter((l) => l.seasonId === season) : all;

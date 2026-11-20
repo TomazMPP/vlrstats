@@ -116,11 +116,24 @@ export const accountKey = (name: string, tag: string) => `acct:${name.toLowerCas
 export const findAccount = (name: string, tag: string) =>
   cached(accountKey(name, tag), TTL.account, () => henrik<Account>(`/valorant/v2/account/${seg(name)}/${seg(tag)}`));
 
-/** The account's home region (where its ranked data lives), when the API says. */
+/** Region from the account's shard. NA shard covers BR, LATAM and NA: BR (most users) until matches say otherwise. */
 export const regionOf = (a: Account): Region | null => {
   const r = a.region?.toLowerCase() ?? '';
+  if (r === 'na') return 'br';
   return isRegion(r) ? r : null;
 };
+
+const LATAM = /mexico|bogot|santiago|lima|buenos|miami/i;
+/** Where the player actually plays, from the server clusters of their recent matches (NA shard only). */
+export function regionFromMatches(ms: { cluster: string }[]): Region | null {
+  const n = { br: 0, latam: 0, na: 0 };
+  for (const m of ms.slice(0, 20)) {
+    if (!m.cluster) continue;
+    n[/s[aã]o paulo/i.test(m.cluster) ? 'br' : LATAM.test(m.cluster) ? 'latam' : 'na']++;
+  }
+  const best = (Object.keys(n) as (keyof typeof n)[]).sort((x, y) => n[y] - n[x])[0];
+  return n[best] ? best : null;
+}
 
 /** Optional data: 404 → null, other errors → null + warning. */
 async function optional<T>(p: Promise<{ value: T; stale: boolean }>): Promise<{ value: T | null; warn: boolean }> {
