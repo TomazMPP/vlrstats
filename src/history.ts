@@ -15,6 +15,7 @@ type RrApi = {
 };
 
 const TTL = 600;
+const PAGE = 500, MAX_PAGES = 6;
 
 const toPoint = (h: RrApi): RrPoint => ({
   id: h.match_id, at: Date.parse(h.date), tier: h.tier?.id ?? 0, before: h.tier_before_update?.id ?? h.tier?.id ?? 0,
@@ -36,16 +37,30 @@ export async function loadHistory(region: Region, name: string, tag: string, puu
     keepRows('rr_history', puuid, (list ?? []).map(toPoint));
     return list?.length ?? 0;
   });
-  const lines = cached(`${key}:linesall`, TTL, async () => {
-    const list = await henrik<Stored[]>(`/valorant/v1/stored-matches/${region}/${seg(name)}/${seg(tag)}?size=500&mode=competitive`);
+  const keep = (list: Stored[] | null) =>
     keepRows('match_lines', puuid, (list ?? []).filter((s) => s.stats?.puuid === puuid).map((s) => ({ ...storedLine(s), at: Date.parse(s.meta.started_at) })));
+  const page = (n: number) => henrik<Stored[]>(`/valorant/v1/stored-matches/${region}/${seg(name)}/${seg(tag)}?size=${PAGE}&page=${n}&mode=competitive`);
+  // newest page often; older pages (full account history) once a day
+  const lines = cached(`${key}:linesall`, TTL, async () => {
+    const list = await page(1);
+    keep(list);
     return list?.length ?? 0;
   });
-  const res = await Promise.allSettled([rr, lines]);
+  const older = lines.then((r) => (r.value ?? 0) < PAGE ? null : cached(`${key}:linesdeep`, 86400, async () => {
+    let n = 0;
+    for (let p = 2; p <= MAX_PAGES; p++) {
+      const list = await page(p);
+      keep(list);
+      n += list?.length ?? 0;
+      if ((list?.length ?? 0) < PAGE) break;
+    }
+    return n;
+  }));
+  const res = await Promise.allSettled([rr, lines, older]);
   return {
     rr: keptRows<RrPoint>('rr_history', puuid),
     lines: keptRows<Line>('match_lines', puuid),
-    warn: res.some((r) => r.status === 'rejected' || r.value.stale),
+    warn: res.some((r) => r.status === 'rejected' || !!r.value?.stale),
   };
 }
 
