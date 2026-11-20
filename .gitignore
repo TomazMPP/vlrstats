@@ -5,3 +5,6 @@ data/
 .design/
 *.log
 .playwright-mcp/
+
+.vercel
+.env*.local
