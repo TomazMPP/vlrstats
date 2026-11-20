@@ -66,7 +66,7 @@ export const Header = ({ children, region }: { children?: Child; region?: string
 
 export const Footer = () => (
   <footer class="foot">
-    <span>Dados via HenrikDev API. Não afiliado à Riot Games.</span>
+    <span>Não afiliado à Riot Games.</span>
     <span class="num">v0.1</span>
   </footer>
 );
