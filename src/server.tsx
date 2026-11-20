@@ -168,4 +168,4 @@ app.notFound((c) => c.html(<NotFound what="page" />, 404));
 app.onError((e, c) => fail(c, e, 'player'));
 
 const port = Number(process.env.PORT ?? 3000);
-serve({ fetch: app.fetch, port }, () => console.log(`vlrstats on http://localhost:${port}`));
+serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? "127.0.0.1" }, () => console.log(`vlrstats on http://localhost:${port}`));
