@@ -3,14 +3,13 @@ import { REGIONS, ago, img, profileUrl, tierName } from '../lib.js';
 
 export type Recent = { r: string; n: string; t: string; tier: number; card: string; at: number };
 
-export const Home = ({ recent, rate, region, value, hint }: {
-  recent: Recent[]; rate: { remaining: number; resetIn: number }; region: string; value?: string; hint?: string;
+export const Home = ({ recent, region, value, hint }: {
+  recent: Recent[]; region: string; value?: string; hint?: string;
 }) => (
   <Layout>
     <div class="wrap page">
       <header class="top">
         <a class="brand" href="/"><Logo />vlrstats</a>
-        <span class="status num"><span class="pulse" aria-hidden="true"></span>API ok · {rate.remaining}/30 req/min</span>
       </header>
 
       <main class="home">

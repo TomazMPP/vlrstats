@@ -4,7 +4,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { compress } from 'hono/compress';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { secureHeaders } from 'hono/secure-headers';
-import { ApiError, rateInfo } from './henrik.js';
+import { ApiError } from './henrik.js';
 import { invalidate, recentMatches } from './db.js';
 import { loadMatch, loadProfile, loadStored, playerPrefix, weaponsAndSides, type CMatch } from './data.js';
 import { isQueue, isRegion, profileUrl, type Region } from './lib.js';
@@ -82,7 +82,7 @@ function fail(c: Context, e: unknown, kind: 'player' | 'match', riotid?: string)
 
 app.get('/', (c) => {
   const region = c.req.query('region');
-  return c.html(<Home recent={readRecent(c)} rate={rateInfo()} region={region && isRegion(region) ? region : readRecent(c)[0]?.r ?? 'br'}
+  return c.html(<Home recent={readRecent(c)} region={region && isRegion(region) ? region : readRecent(c)[0]?.r ?? 'br'}
     value={c.req.query('riotid')} hint={c.req.query('e') === '1' ? 'Use o formato Nome#TAG, com o # antes do TAG.' : undefined} />);
 });
 

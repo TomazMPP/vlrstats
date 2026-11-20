@@ -15,11 +15,6 @@ let remaining = 30;
 let resetAt = 0;
 const inflight = new Map<string, Promise<unknown>>();
 
-export function rateInfo() {
-  const now = Date.now();
-  return { remaining: now > resetAt ? 30 : remaining, resetIn: Math.max(0, Math.ceil((resetAt - now) / 1000)) };
-}
-
 export function henrik<T>(path: string): Promise<T> {
   const hit = inflight.get(path);
   if (hit) return hit as Promise<T>;
