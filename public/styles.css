@@ -319,3 +319,7 @@ a.lift:hover { box-shadow: var(--e2), var(--top); transform: translateY(-1px); }
 
 /* Favorite toggle */
 .fav[aria-pressed="true"] svg { fill: currentColor; }
+
+/* Admin funnel */
+.fun { display: flex; flex-direction: column; gap: 16px; }
+.fun-step { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }

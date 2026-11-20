@@ -4,7 +4,7 @@ import { ago, fmt, profileUrl, ratio } from '../lib.js';
 
 const KINDS: Record<string, string> = {
   home: 'Início', search: 'Busca', profile: 'Perfil', stats: 'Estatísticas', history: 'Histórico', match: 'Partida', refresh: 'Atualizar',
-  'profile·aba': 'Perfil (troca de aba)', 'stats·aba': 'Estatísticas (troca de aba)',
+  'profile·aba': 'Perfil (troca de aba)', 'stats·aba': 'Estatísticas (troca de aba)', compare: 'Comparar',
 };
 const PERIODS = [1, 7, 30, 90];
 
@@ -53,7 +53,19 @@ const Table = ({ head, rows, empty }: { head: string[]; rows: unknown[][]; empty
   </div>
 ) : <div class="card empty">{empty}</div>;
 
+const Step = ({ label, n, of, note }: { label: string; n: number; of: number; note?: string }) => (
+  <div class="fun-step">
+    <span class="hrow" style="justify-content:space-between;gap:12px">
+      <span>{label}</span>
+      <span class="num"><b>{fmt.int(n)}</b> <span class="muted small">{fmt.pct(ratio(n, of))}</span></span>
+    </span>
+    <span class="cmp-bar" aria-hidden="true" style="max-width:none"><i style={`width:${(ratio(n, of) * 100).toFixed(1)}%`}></i></span>
+    {note && <span class="small muted">{note}</span>}
+  </div>
+);
+
 export const AdminPage = ({ r }: { r: Report }) => {
+  const fu = r.funnel, re = r.retention;
   const k = r.period, t = r.today;
   return (
     <Layout title="Analytics" noindex>
@@ -93,6 +105,28 @@ export const AdminPage = ({ r }: { r: Report }) => {
             </div>
             <Daily rows={r.daily} />
           </section>
+
+          <div class="two in" style="--d:80ms">
+            <section>
+              <div class="sh"><h2>Funil</h2><span class="muted small">visitantes por dia, % do total</span></div>
+              <div class="card pad fun">
+                <Step label="Chegaram" n={fu.visitors ?? 0} of={fu.visitors ?? 0} />
+                <Step label="Buscaram" n={fu.searched ?? 0} of={fu.visitors ?? 0} />
+                <Step label="Abriram um perfil" n={fu.profile ?? 0} of={fu.visitors ?? 0}
+                  note={`${fmt.pct(ratio(fu.searchToProfile ?? 0, fu.searched ?? 0))} de quem buscou`} />
+                <Step label="Foram além (histórico, estatísticas, partida, comparar)" n={fu.deep ?? 0} of={fu.visitors ?? 0}
+                  note={`${fmt.pct(ratio(fu.profileToDeep ?? 0, fu.profile ?? 0))} de quem abriu um perfil`} />
+              </div>
+            </section>
+            <section>
+              <div class="sh"><h2>Retenção</h2><span class="muted small">por jogador, últimos {Math.max(r.days, 30)} dias</span></div>
+              <div class="grid2">
+                <div class="card kpi"><b>{re.base1 ? fmt.pct(ratio(re.d1 ?? 0, re.base1)) : '—'}</b><span class="num">Voltaram no dia seguinte · {fmt.int(re.d1 ?? 0)} de {fmt.int(re.base1 ?? 0)}</span></div>
+                <div class="card kpi"><b>{re.base7 ? fmt.pct(ratio(re.d7 ?? 0, re.base7)) : '—'}</b><span class="num">Voltaram em até 7 dias · {fmt.int(re.d7 ?? 0)} de {fmt.int(re.base7 ?? 0)}</span></div>
+              </div>
+              <p class="small muted" style="margin-top:10px">Um perfil visto num dia e visto de novo depois. O visitante muda de hash todo dia (privacidade), então a retenção é medida pelo jogador consultado, não pela pessoa.</p>
+            </section>
+          </div>
 
           <div class="two in" style="--d:100ms">
             <section>

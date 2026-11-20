@@ -29,6 +29,7 @@ function classify(method: string, path: string, c: Context) {
   const p = /^\/p\/([^/]+)\/([^/]+)\/([^/]+)(\/stats|\/history)?\/?$/.exec(path);
   if (p) return { kind: p[4] ? p[4].slice(1) : 'profile', region: p[1], player: dec(p[2]) + '#' + dec(p[3]) };
   if (/^\/m\/[^/]+\/[^/]+\/?$/.test(path)) return { kind: 'match', region: path.split('/')[2], player: null };
+  if (path === '/compare') return { kind: 'compare', region: null, player: (c.req.query('a') ?? '').trim().slice(0, 40) || null };
   return null;
 }
 const dec = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
@@ -64,6 +65,34 @@ const DAY = 86400_000;
 /** São Paulo calendar day of a ms timestamp, in SQL. */
 const LOCAL_DAY = "date((at - 10800000) / 1000, 'unixepoch')";
 
+const PROFILE = "('profile','stats','history','profile·aba','stats·aba')";
+const DEEP = "('stats','history','match','compare','stats·aba')";
+
+/** Visitors (per day, as the hash rotates daily) reaching each step. */
+function funnel(since: number) {
+  return query<{ visitors: number; searched: number; profile: number; deep: number; searchToProfile: number; profileToDeep: number }>(
+    `SELECT COUNT(*) visitors, SUM(s > 0) searched, SUM(p > 0) profile, SUM(d > 0) deep,
+            SUM(s > 0 AND p > 0) searchToProfile, SUM(p > 0 AND d > 0) profileToDeep
+     FROM (SELECT visitor,
+                  SUM(kind = 'search') s,
+                  SUM(kind IN ('profile','profile·aba') AND status = 200) p,
+                  SUM(kind IN ${DEEP} AND status = 200) d
+           FROM hits WHERE at >= ? GROUP BY visitor, ${LOCAL_DAY})`, since)[0];
+}
+
+/** Of the players viewed on a day, how many were viewed again the next day / within 7 days. */
+function retention(since: number) {
+  const today = Math.floor((Date.now() - 10800000) / DAY);
+  return query<{ base1: number; d1: number; base7: number; d7: number }>(
+    `WITH pd AS (SELECT DISTINCT lower(player) pl, CAST((at - 10800000) / 86400000 AS INT) day
+                FROM hits WHERE at >= ? AND kind IN ${PROFILE} AND status = 200 AND player IS NOT NULL)
+     SELECT SUM(a.day <= ${today - 1}) base1,
+            SUM(a.day <= ${today - 1} AND EXISTS (SELECT 1 FROM pd b WHERE b.pl = a.pl AND b.day = a.day + 1)) d1,
+            SUM(a.day <= ${today - 7}) base7,
+            SUM(a.day <= ${today - 7} AND EXISTS (SELECT 1 FROM pd b WHERE b.pl = a.pl AND b.day BETWEEN a.day + 1 AND a.day + 7)) d7
+     FROM pd a`, since)[0];
+}
+
 export function report(days: number) {
   const since = Date.now() - days * DAY;
   const one = <T>(sql: string, ...a: (string | number)[]) => query<T>(sql, ...a)[0];
@@ -75,6 +104,8 @@ export function report(days: number) {
   const todayStart = Date.parse(new Date(Date.now() - 10800000).toISOString().slice(0, 10) + 'T03:00:00Z');
   return {
     days,
+    funnel: funnel(since),
+    retention: retention(Date.now() - Math.max(days, 30) * DAY),
     today: kpi(todayStart),
     period: kpi(since),
     daily: query<{ day: string; views: number; visitors: number }>(
