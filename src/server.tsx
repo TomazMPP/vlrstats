@@ -19,6 +19,7 @@ import { AdminPage } from './views/admin.js';
 import { acts, loadHistory, months, rrByMatch } from './history.js';
 import { report, track } from './analytics.js';
 import { startRefresh } from './refresh.js';
+import { social } from './social.js';
 import { ApiFailure, NotFound, RateLimited } from './views/states.js';
 
 const app = new Hono();
@@ -162,7 +163,8 @@ app.get('/p/:region/:name/:tag', async (c) => {
     const fixed = regionFix(c, pl, p);
     if (fixed) return c.redirect(fixed);
     pushRecent(c, { r: pl.region, n: p.account.name, t: p.account.tag, tier: p.mmr?.current.tier.id ?? 0, card: p.account.card ?? '', at: Date.now() });
-    return c.html(<ProfilePage p={p} queue={queue} pages={pages} rrs={rrByMatch(p.account.puuid, p.history)} />);
+    const rrs = rrByMatch(p.account.puuid, p.history);
+    return c.html(<ProfilePage p={p} queue={queue} pages={pages} rrs={rrs} social={social(p.account.puuid, rrs)} />);
   } catch (e) {
     return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
   }

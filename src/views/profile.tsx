@@ -2,6 +2,8 @@ import { Icon, Img, RiotId, Shell } from './ui.js';
 import { groupBy, lineOf, totals, type Line, type Profile } from '../data.js';
 import type { RrPoint } from '../history.js';
 import { Crown } from './perf.js';
+import { SocialSection } from './social.js';
+import type { Social } from '../social.js';
 import { QUEUES, ago, fmt, img, profileUrl, tierName, tierShort, type Queue } from '../lib.js';
 
 export const ProfileTabs = ({ base, on }: { base: string; on: 'overview' | 'stats' | 'history' }) => (
@@ -72,7 +74,7 @@ const MmrCard = ({ p }: { p: Profile }) => {
   );
 };
 
-export const ProfilePage = ({ p, queue, pages, rrs }: { p: Profile; queue: Queue; pages: number; rrs: Map<string, RrPoint> }) => {
+export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queue: Queue; pages: number; rrs: Map<string, RrPoint>; social: Social }) => {
   const a = p.account;
   const base = profileUrl(p.region, a.name, a.tag);
   const lines = p.matches.map((m) => lineOf(m, a.puuid)).filter((l): l is Line => !!l);
@@ -247,6 +249,8 @@ export const ProfilePage = ({ p, queue, pages, rrs }: { p: Profile; queue: Queue
               </div>
             </section>
           )}
+
+          <SocialSection s={social} region={p.region} />
         </main>
       </div>
     </Shell>
