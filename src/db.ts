@@ -121,3 +121,21 @@ export function keptRows<T>(table: keyof typeof keep, puuid: string): T[] {
   return (kept[table].all(puuid) as { data: string }[]).map((r) => JSON.parse(r.data));
 }
 
+// ---- analytics: own first-party log, no cookies, no raw IPs ----------------
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS hits (
+    at INTEGER NOT NULL, kind TEXT NOT NULL, path TEXT NOT NULL, status INTEGER NOT NULL,
+    visitor TEXT NOT NULL, country TEXT, ref TEXT, player TEXT, region TEXT, ms INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS hits_at ON hits (at);
+  CREATE INDEX IF NOT EXISTS hits_player ON hits (player, at);
+`);
+const qHit = db.prepare('INSERT INTO hits (at, kind, path, status, visitor, country, ref, player, region, ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+const qPrune = db.prepare('DELETE FROM hits WHERE at < ?');
+export type Hit = { kind: string; path: string; status: number; visitor: string; country: string | null; ref: string | null; player: string | null; region: string | null; ms: number };
+export function logHit(h: Hit) {
+  qHit.run(Date.now(), h.kind, h.path, h.status, h.visitor, h.country, h.ref, h.player, h.region, h.ms);
+}
+export const pruneHits = (days: number) => qPrune.run(Date.now() - days * 86400_000);
+export const query = <T>(sql: string, ...args: (string | number)[]) => db.prepare(sql).all(...args) as T[];

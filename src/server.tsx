@@ -4,6 +4,8 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { compress } from 'hono/compress';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { secureHeaders } from 'hono/secure-headers';
+import { basicAuth } from 'hono/basic-auth';
+import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches } from './db.js';
 import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, type CMatch } from './data.js';
@@ -13,7 +15,9 @@ import { ProfilePage } from './views/profile.js';
 import { StatsPage, PERIODS, type Period } from './views/stats.js';
 import { MatchPage } from './views/match.js';
 import { HistoryPage } from './views/history.js';
+import { AdminPage } from './views/admin.js';
 import { acts, loadHistory, months, rrByMatch } from './history.js';
+import { report, track } from './analytics.js';
 import { ApiFailure, NotFound, RateLimited } from './views/states.js';
 
 const app = new Hono();
@@ -33,6 +37,21 @@ app.use(secureHeaders({
   },
   crossOriginEmbedderPolicy: false,
 }));
+
+app.use(track);
+
+// ---- private analytics (HTTP basic auth; off unless ADMIN_PASSWORD is set) ----
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD?.trim() ?? '';
+app.use('/admin', async (c, next) => {
+  if (ADMIN_PASSWORD.length < 12) return c.html(<NotFound what="page" />, 404);
+  c.header('Cache-Control', 'no-store');
+  c.header('X-Robots-Tag', 'noindex');
+  return basicAuth({ username: 'admin', password: ADMIN_PASSWORD, realm: 'vlrstats' })(c, next);
+});
+app.get('/admin', (c) => {
+  const d = Number(c.req.query('d'));
+  return c.html(<AdminPage r={report([1, 7, 30, 90].includes(d) ? d : 7)} />);
+});
 
 app.use('/styles.css', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=31536000, immutable'); });
 app.use('/favicon.svg', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=604800'); });
@@ -220,7 +239,7 @@ app.get('/m/:region/:id', async (c) => {
 });
 
 app.notFound((c) => c.html(<NotFound what="page" />, 404));
-app.onError((e, c) => fail(c, e, 'player'));
+app.onError((e, c) => (e instanceof HTTPException ? e.getResponse() : fail(c, e, 'player')));
 
 const port = Number(process.env.PORT ?? 3000);
 serve({ fetch: app.fetch, port, hostname: process.env.HOST ?? "127.0.0.1" }, () => console.log(`vlrstats on http://localhost:${port}`));
