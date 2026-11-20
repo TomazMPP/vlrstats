@@ -7,13 +7,14 @@ import { secureHeaders } from 'hono/secure-headers';
 import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
-import { invalidate, recentMatches } from './db.js';
+import { invalidate, recentMatches, sharedMatches } from './db.js';
 import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, type CMatch } from './data.js';
 import { isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { Home, type Recent } from './views/home.js';
 import { ProfilePage } from './views/profile.js';
 import { StatsPage, PERIODS, type Period } from './views/stats.js';
 import { MatchPage } from './views/match.js';
+import { ComparePage, headToHead, type Side } from './views/compare.js';
 import { HistoryPage } from './views/history.js';
 import { AdminPage } from './views/admin.js';
 import { acts, loadHistory, months, rrByMatch } from './history.js';
@@ -144,6 +145,38 @@ function regionFix(c: Context, pl: { region: Region }, p: { matches: { cluster: 
   if (!where || where === pl.region) return null;
   return profileUrl(where, p.account.name, p.account.tag) + suffix + new URL(c.req.url).search;
 }
+
+/** "Nome#TAG" from a query value, or null. */
+function parseId(raw: string | undefined) {
+  const s = (raw ?? '').trim();
+  const i = s.lastIndexOf('#');
+  const name = i > 0 ? s.slice(0, i).trim() : '', tag = i > 0 ? s.slice(i + 1).trim() : '';
+  if (!name || !tag || name.length > 16 || tag.length > 5 || /[#/]/.test(name + tag)) return null;
+  return { name, tag };
+}
+
+/** A player's side of the comparison: profile + last 50 competitive lines. */
+async function side(id: { name: string; tag: string }): Promise<Side> {
+  const { value: acc } = await findAccount(id.name, id.tag);
+  const region = regionOf(acc) ?? 'br';
+  const p = await loadProfile(region, acc.name, acc.tag, 'competitive', 1);
+  const fixed = shardOf(region) === 'na' ? regionFromMatches(p.matches) : null;
+  const stored = await loadStored(fixed ?? region, acc.name, acc.tag, 'competitive');
+  return { p: fixed && fixed !== region ? { ...p, region: fixed } : p, lines: stored.value ?? [] };
+}
+
+app.get('/compare', async (c) => {
+  const raw = { a: (c.req.query('a') ?? '').slice(0, 40), b: (c.req.query('b') ?? '').slice(0, 40) };
+  const a = parseId(raw.a), b = parseId(raw.b);
+  if (!a) return c.redirect('/');
+  let A: Side;
+  try { A = await side(a); } catch (e) { return fail(c, e, 'player', `${a.name}#${a.tag}`); }
+  if (!b) return c.html(<ComparePage A={A} B={null} h2h={null} raw={raw} />);
+  let B: Side;
+  try { B = await side(b); } catch (e) { return fail(c, e, 'player', `${b.name}#${b.tag}`); }
+  const h2h = headToHead(sharedMatches<CMatch>(A.p.account.puuid, B.p.account.puuid), A.p.account.puuid, B.p.account.puuid);
+  return c.html(<ComparePage A={A} B={B} h2h={h2h} raw={raw} />);
+});
 
 app.post('/recent/clear', (c) => {
   deleteCookie(c, RECENT, { path: '/' });

@@ -83,6 +83,14 @@ export function putMatch(m: { id: string; started: number; queue: string; player
   }
 }
 
+const qShared = db.prepare(
+  'SELECT m.data FROM player_matches a JOIN player_matches b ON b.id = a.id AND b.puuid = ? JOIN matches m ON m.id = a.id WHERE a.puuid = ? ORDER BY a.started DESC LIMIT ?',
+);
+/** Stored matches both players were in, newest first. */
+export function sharedMatches<T>(a: string, b: string, limit = 100): T[] {
+  return (qShared.all(b, a, limit) as { data: string }[]).map((r) => JSON.parse(r.data));
+}
+
 export function recentMatches<T>(puuid: string, queue: string | null, limit: number): T[] {
   const rows = (queue ? qRecentQueue.all(puuid, queue, limit) : qRecentAll.all(puuid, limit)) as { data: string }[];
   return rows.map((r) => JSON.parse(r.data));

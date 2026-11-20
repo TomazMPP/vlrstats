@@ -1,7 +1,7 @@
 import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 
-export const ASSET_V = '7';
+export const ASSET_V = '8';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">

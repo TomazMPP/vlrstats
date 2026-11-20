@@ -111,6 +111,7 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                 onclick="navigator.clipboard.writeText(this.dataset.copy).then(()=>{this.lastChild.textContent='Copiado'})">
                 <Icon name="copy" size={14} /><span>Copiar ID</span>
               </button>
+              <a class="btn" href={`/compare?a=${encodeURIComponent(`${a.name}#${a.tag}`)}`}><Icon name="user" size={14} />Comparar</a>
             </div>
             {p.warn && <p class="note"><Icon name="info" size={14} />Alguns dados podem estar desatualizados.</p>}
           </div>
