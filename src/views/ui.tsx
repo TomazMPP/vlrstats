@@ -1,7 +1,7 @@
 import type { Child, FC } from 'hono/jsx';
 import { raw } from 'hono/html';
 
-export const ASSET_V = '13';
+export const ASSET_V = '14';
 
 export const Logo = () => (
   <span class="mark" aria-hidden="true">
@@ -77,7 +77,7 @@ export const Header = ({ children, region }: { children?: Child; region?: string
 export const Footer = () => (
   <footer class="foot">
     <span>Não afiliado à Riot Games.</span>
-    <span class="num">v0.1</span>
+    <span class="hrow" style="gap:12px"><a href="/llms.txt">llms.txt</a><span class="num">v0.1</span></span>
   </footer>
 );
 

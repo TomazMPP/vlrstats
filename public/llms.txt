@@ -1,0 +1,21 @@
+# vlrstats
+
+> Tracker de Valorant em português: busque por Riot ID (Nome#TAG) e veja rank, histórico de RR, partidas, desempenho por agente, mapa e arma, e o detalhe de cada partida. Não afiliado à Riot Games.
+
+Páginas renderizadas no servidor, em pt-BR. Regiões aceitas: `br`, `latam`, `na`, `eu`, `ap`, `kr`. No Riot ID, o `#` vira `/` na URL (ex.: `Nome#BR1` → `/p/br/Nome/BR1`).
+
+## Páginas
+
+- [Início e busca](https://vlrstats.lol/): busca por Riot ID; `/search?riotid=Nome%23TAG` detecta a região e redireciona ao perfil
+- Perfil `/p/{região}/{nome}/{tag}`: rank atual, MMR estimado, partidas recentes, duos e jogadores frequentes
+- Histórico `/p/{região}/{nome}/{tag}/history`: histórico completo de partidas e RR ganho/perdido por partida
+- Estatísticas `/p/{região}/{nome}/{tag}/stats`: desempenho por agente, mapa e arma, win rate de agente por mapa; `?period=20|50|act|all` (últimas 20, últimas 50, ato atual, tudo)
+- Recap do ato `/p/{região}/{nome}/{tag}/recap`: resumo do ato, com imagem para compartilhar
+- Partida `/m/{região}/{id}`: placar, estatísticas de cada jogador, Performance Score da Riot e MVP
+- Comparar `/compare?a=Nome%23TAG&b=Nome%23TAG`: dois jogadores lado a lado, com confronto direto nas partidas em comum
+
+## Como os dados funcionam
+
+- Dados de partidas vêm da API não oficial HenrikDev, que espelha a API da Riot.
+- Rank, RR e lista de partidas ficam até 5 min em cache; se a API falhar, a última cópia é servida com aviso.
+- MMR estimado: a Riot não expõe o MMR. O valor é aproximado pelo rank médio dos outros 9 jogadores nas partidas competitivas recentes e pela média de RR ganho/perdido. Não é um número oficial.

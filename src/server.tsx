@@ -65,6 +65,8 @@ app.use('/styles.css', serveStatic({ root: './public' }));
 app.use('/favicon.svg', serveStatic({ root: './public' }));
 app.use('/app.js', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=31536000, immutable'); });
 app.use('/app.js', serveStatic({ root: './public' }));
+app.use('/llms.txt', async (c, next) => { await next(); c.header('Cache-Control', 'public, max-age=3600'); });
+app.use('/llms.txt', serveStatic({ root: './public' }));
 
 // ---- recent searches (cookie, no server state) ------------------------------
 
