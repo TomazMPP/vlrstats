@@ -1,6 +1,6 @@
 import { Img, RiotId, Shell } from './ui.js';
 import { ProfileTabs } from './profile.js';
-import { groupBy, totals, type Line, type weaponsAndSides } from '../data.js';
+import { groupBy, totals, type Line, type WL, type sidesByMap, type weaponsAndSides } from '../data.js';
 import { fmt, img, profileUrl, ratio, tierName } from '../lib.js';
 
 const since = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" });
@@ -10,8 +10,14 @@ export const PERIODS: Record<Period, string> = { '20': '20', '50': '50', act: 'A
 
 type Props = {
   region: string; name: string; tag: string; card: string; tier: number;
-  lines: Line[]; period: Period; season: string; detail: ReturnType<typeof weaponsAndSides>; warn: boolean;
+  lines: Line[]; period: Period; season: string; detail: ReturnType<typeof weaponsAndSides>;
+  sides: ReturnType<typeof sidesByMap>; warn: boolean;
 };
+
+/** Rounds won out of played, the percentage last so the column lines up on it. */
+const WinCell = ({ wl, strong }: { wl: WL; strong?: boolean }) => (
+  <td>{wl[1] ? <><span class="small muted">{wl[0]} / {wl[1]}</span>{' '}<span style={strong ? 'font-weight:600' : undefined}>{fmt.pct(ratio(wl[0], wl[1]))}</span></> : <span class="muted">—</span>}</td>
+);
 
 export const StatsPage = (s: Props) => {
   const base = profileUrl(s.region, s.name, s.tag);
@@ -116,6 +122,30 @@ export const StatsPage = (s: Props) => {
                 </div>
               </section>
             </div>
+
+            {s.sides.length > 0 && (
+              <section class="in" style="--d:155ms">
+                <div class="sh"><h2>Lado por mapa</h2><span class="muted small">rounds vencidos · menos de 3 partidas em cinza</span></div>
+                <div class="card scroll">
+                  <table style="min-width:520px">
+                    <thead><tr><th>Mapa</th><th>Partidas</th><th>Ataque</th><th>Defesa</th></tr></thead>
+                    <tbody>
+                      {s.sides.map((m) => {
+                        const a = ratio(m.atk[0], m.atk[1]), d = ratio(m.def[0], m.def[1]);
+                        return (
+                          <tr class={m.games < 3 ? 'muted' : undefined} title={m.games < 3 ? 'Amostra pequena' : undefined}>
+                            <td style="font-weight:500">{m.name}</td>
+                            <td>{m.games}</td>
+                            <WinCell wl={m.atk} strong={a > d} />
+                            <WinCell wl={m.def} strong={d > a} />
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
             <section class="in" style="--d:170ms">
               <div class="sh"><h2>Agentes por mapa</h2><span class="muted small">% de vitória · menos de 3 partidas em cinza</span></div>

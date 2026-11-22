@@ -8,7 +8,7 @@ import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches, sharedMatches, suggest } from './db.js';
-import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, isFfa, placeOf, noRounds, currentTiers, type CMatch, type Line, type Profile } from './data.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, sidesByMap, lineOf, totals, isFfa, placeOf, noRounds, currentTiers, type CMatch, type Line, type Profile } from './data.js';
 import { dateTime, img, isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { cachedPng, genericSvg, matchSvg, profileSvg, recapSvg, type OgPlayer, type OgRank } from './og.js';
 import { recap } from './recap.js';
@@ -268,7 +268,7 @@ app.get('/p/:region/:name/:tag/stats', async (c) => {
     const seasonShort = p.matches.find((m) => m.seasonId === season)?.season ?? '';
     return c.html(<StatsPage region={pl.region} name={p.account.name} tag={p.account.tag} card={p.account.card}
       tier={p.mmr?.current.tier.id ?? 0} lines={lines} period={period} season={seasonShort}
-      detail={weaponsAndSides(detailed, p.account.puuid)} warn={p.warn || stored.warn || !!deep?.warn} />);
+      detail={weaponsAndSides(detailed, p.account.puuid)} sides={sidesByMap(detailed, p.account.puuid)} warn={p.warn || stored.warn || !!deep?.warn} />);
   } catch (e) {
     return fail(c, e, 'player', `${pl.name}#${pl.tag}`);
   }

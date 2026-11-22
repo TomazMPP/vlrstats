@@ -350,6 +350,23 @@ export function weaponsAndSides(matches: CMatch[], puuid: string) {
   return { matches: n, weapons, atk, def };
 }
 
+/** [won, played] */
+export type WL = [number, number];
+
+/** Rounds won on attack and defense on each map, maps by games played. */
+export function sidesByMap(matches: CMatch[], puuid: string) {
+  const by = new Map<string, { name: string; id: string; games: number; atk: WL; def: WL }>();
+  for (const m of matches) {
+    const p = m.players.find((x) => x.puuid === puuid);
+    if (!p || noRounds(m)) continue;
+    const e = by.get(m.map) ?? { name: m.map, id: m.mapId, games: 0, atk: [0, 0], def: [0, 0] };
+    e.games++;
+    e.atk[0] += p.atk[0]; e.atk[1] += p.atk[1]; e.def[0] += p.def[0]; e.def[1] += p.def[1];
+    by.set(m.map, e);
+  }
+  return [...by.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
+}
+
 /**
  * Estimated MMR. Riot doesn't expose hidden MMR; matchmaking builds lobbies
  * around it, so the average visible rank of the other 9 players is a good
