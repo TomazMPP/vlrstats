@@ -8,7 +8,7 @@ import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches, sharedMatches, suggest } from './db.js';
-import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, isFfa, placeOf, type CMatch, type Line, type Profile } from './data.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, isFfa, placeOf, noRounds, currentTiers, type CMatch, type Line, type Profile } from './data.js';
 import { dateTime, img, isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { cachedPng, genericSvg, matchSvg, profileSvg, recapSvg, type OgPlayer, type OgRank } from './og.js';
 import { recap } from './recap.js';
@@ -375,8 +375,10 @@ app.get('/m/:region/:id', async (c) => {
   try {
     const m = await loadMatch(region as Region, id);
     const me = m.players.find((p) => p.puuid === c.req.query('p'));
+    // DM/TDM come without ranks: look up each player's current one
+    const tiers = noRounds(m) ? await currentTiers(region as Region, m.players.map((p) => p.puuid)) : undefined;
     c.header('Cache-Control', 'private, max-age=300');
-    return c.html(<MatchPage m={m} me={me} region={region} />);
+    return c.html(<MatchPage m={m} me={me} region={region} tiers={tiers} />);
   } catch (e) {
     return fail(c, e, 'match');
   }

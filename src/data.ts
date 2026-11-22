@@ -1,5 +1,5 @@
 // Data layer: fetch from HenrikDev through the cache, compact matches, aggregate stats.
-import { henrik, ApiError } from './henrik.js';
+import { henrik, rateLeft, ApiError } from './henrik.js';
 import { cached, getMatch, putMatch, recentMatches } from './db.js';
 import { QUEUE_MODE, isRegion, ratio, seg, type Queue, type Region } from './lib.js';
 
@@ -262,6 +262,36 @@ export const noRounds = (m: CMatch) => m.rounds.length <= 1;
 /** Players ordered like the in-game DM scoreboard: kills, then fewer deaths. */
 export const leaderboard = (m: CMatch) => [...m.players].sort((a, b) => b.k - a.k || a.d - b.d);
 export const placeOf = (m: CMatch, puuid: string) => leaderboard(m).findIndex((p) => p.puuid === puuid) + 1;
+
+/**
+ * Current competitive rank of each player, for modes whose match data carries none (DM, TDM give tier 0).
+ * Cached 6h per player. New lookups only spend the API budget above a reserve kept for profile visits,
+ * and the page waits at most ~4s; anyone left falls back to their last stored competitive match.
+ */
+export async function currentTiers(region: Region, puuids: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  let budget = rateLeft() - 12;
+  const one = async (id: string) => {
+    try {
+      const r = await cached(`tier:${id}`, 21600, async () => {
+        if (budget-- <= 0) throw new ApiError(429, 'tier lookup skipped (budget)');
+        try {
+          const d = await henrik<{ current?: { tier?: { id: number } } }>(`/valorant/v3/by-puuid/mmr/${region}/pc/${seg(id)}`);
+          return d?.current?.tier?.id ?? 0;
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) return 0;
+          throw e;
+        }
+      });
+      out.set(id, r.value);
+    } catch {
+      const last = recentMatches<CMatch>(id, 'competitive', 1)[0]?.players.find((x) => x.puuid === id)?.tier;
+      if (last) out.set(id, last);
+    }
+  };
+  await Promise.race([Promise.all(puuids.map(one)), new Promise((r) => setTimeout(r, 4000))]);
+  return out;
+}
 
 export function lineOf(m: CMatch, puuid: string): Line | null {
   const p = m.players.find((x) => x.puuid === puuid);

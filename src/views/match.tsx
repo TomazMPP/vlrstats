@@ -5,7 +5,9 @@ import { dateTime, fmt, img, minutes, profileUrl, ratio, tierName, tierShort } f
 
 const TEAM_PT: Record<string, string> = { Red: 'Time vermelho', Blue: 'Time azul' };
 
-export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: string }) => {
+export const MatchPage = ({ m, me, region, tiers }: { m: CMatch; me?: CPlayer; region: string; tiers?: Map<string, number> }) => {
+  // DM/TDM carry no rank in the match: the current one is looked up instead
+  const tierOf = (p: CPlayer) => tiers?.get(p.puuid) ?? p.tier;
   const teamIds = Object.keys(m.teams);
   const myTeam = me?.team ?? teamIds[0];
   const order = [myTeam, ...teamIds.filter((t) => t !== myTeam)];
@@ -30,8 +32,8 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
   );
   const range = (a: number, b: number) => Array.from({ length: Math.max(0, Math.min(b, nr) - a) }, (_, k) => a + k);
 
-  const others = m.players.filter((p) => p.puuid !== me?.puuid && p.tier >= 3);
-  const lobby = others.length ? others.reduce((n, p) => n + p.tier, 0) / others.length : null;
+  const others = m.players.filter((p) => p.puuid !== me?.puuid && tierOf(p) >= 3);
+  const lobby = others.length ? others.reduce((n, p) => n + tierOf(p), 0) / others.length : null;
   const backTo = me ? profileUrl(region, me.name, me.tag) : '/';
   const label = m.queue === 'competitive' ? 'Competitivo' : m.queueName;
   // Performance Score when the match has it, ACS otherwise
@@ -58,8 +60,8 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
   /** Kills-first table for DM (numbered, one list) and TDM (per team). */
   const FlatTable = ({ players, numbered }: { players: CPlayer[]; numbered?: boolean }) => (
     <div class="card scroll">
-      <table style="min-width:560px">
-        <thead><tr>{numbered && <th style="width:44px">#</th>}<th style="text-align:left">Jogador</th><th>K</th><th>D</th><th>A</th><th>K/D</th><th>+/−</th>{hasShots && <th>HS</th>}{hasDmg && <th>Dano</th>}</tr></thead>
+      <table style={`min-width:${tiers ? 680 : 560}px`}>
+        <thead><tr>{numbered && <th style="width:44px">#</th>}<th style="text-align:left">Jogador</th>{tiers && <th title="Rank atual no competitivo">Rank</th>}<th>K</th><th>D</th><th>A</th><th>K/D</th><th>+/−</th>{hasShots && <th>HS</th>}{hasDmg && <th>Dano</th>}</tr></thead>
         <tbody>
           {players.map((p, i) => (
             <tr class={p.puuid === me?.puuid ? 'me' : undefined}>
@@ -73,6 +75,14 @@ export const MatchPage = ({ m, me, region }: { m: CMatch; me?: CPlayer; region: 
                   </span>
                 </span>
               </td>
+              {tiers && (
+                <td>
+                  <span class="hrow" style="justify-content:flex-end;gap:6px">
+                    {tierOf(p) >= 3 && <Img src={img.rank(tierOf(p))} class="rank-sm" w={22} h={22} />}
+                    <span class="small" style="font-weight:400">{tiers.has(p.puuid) || p.tier ? tierShort(tierOf(p)) : '—'}</span>
+                  </span>
+                </td>
+              )}
               <td style="font-weight:600">{p.k}</td><td>{p.d}</td><td>{p.a}</td><td>{kd(p)}</td><td>{fmt.signed(p.k - p.d)}</td>
               {hasShots && <td class="muted">{hsOf(p)}</td>}{hasDmg && <td class="muted">{fmt.int(p.dmg)}</td>}
             </tr>
