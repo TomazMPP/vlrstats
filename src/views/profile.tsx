@@ -1,5 +1,5 @@
 import { Icon, Img, RiotId, Shell } from './ui.js';
-import { groupBy, isFfa, lineOf, noRounds, placeOf, rankUp, totals, type Line, type Profile } from '../data.js';
+import { groupBy, isFfa, lineOf, noRounds, placeOf, rankUp, divisionSpan, totals, type Line, type Profile } from '../data.js';
 import type { RrPoint } from '../history.js';
 import { Crown } from './perf.js';
 import { SocialSection } from './social.js';
@@ -46,13 +46,13 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 /** RR and wins left to the next division, and the games that takes at the recent pace. */
 const RankUpRows = ({ p }: { p: Profile }) => {
   const cur = p.mmr?.current;
-  const r = cur ? rankUp(cur.tier.id, cur.rr, p.history) : null;
+  const r = cur ? rankUp(cur.tier.id, cur.rr, p.history, p.region) : null;
   if (!r) return null;
   const gain = Math.round(r.avgGain), loss = Math.round(r.avgLoss ?? 0);
   const pace = `${fmt.pct(r.winRate)} de vitória, +${gain} / −${loss} RR nas últimas ${r.sample} ranqueadas: ${fmt.signed(Math.round(r.perGame * 10) / 10).replace('.', ',')} RR por partida`;
   return (
     <>
-      <div class="kv" title={`Faltam ${r.need} RR; cada vitória rende +${gain} RR em média`}>
+      <div class="kv" title={`Faltam ${r.need} RR; cada vitória rende +${gain} RR em média${r.top500 ? '. Radiante também exige estar no top 500 da região' : ''}`}>
         <span class="muted">Até {tierName(r.next)}</span>
         <span class="num">{r.need} RR · {plural(r.wins, 'vitória', 'vitórias')}</span>
       </div>
@@ -107,6 +107,9 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
   const firsts = queue === 'deathmatch' ? p.matches.filter((m) => placeOf(m, a.puuid) === 1).length : 0;
   const agents = groupBy(lines, 'agent').slice(0, 3);
   const cur = p.mmr?.current;
+  // progress inside the division; from Immortal up the RR adds up to regional thresholds
+  const span = cur ? divisionSpan(cur.tier.id, p.region) : null;
+  const filled = span && cur ? Math.min(1, Math.max(0, (cur.rr - span[0]) / (span[1] - span[0]))) : 0;
   const season = p.mmr?.seasonal?.at(-1);
   const hist20 = p.history.slice(0, 20).reverse();
   const elos = hist20.map((h) => h.elo);
@@ -165,7 +168,7 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                     <div class="small muted">{cur.leaderboard_placement?.rank ? `#${cur.leaderboard_placement.rank}` : 'RR'}</div>
                   </div>
                 </div>
-                {cur.tier.id < 27 && <div class="bar" role="img" aria-label={`${cur.rr} de 100 RR`}><i style={`width:${Math.min(100, cur.rr)}%`}></i></div>}
+                {span && <div class="bar" role="img" aria-label={`${cur.rr} de ${span[1]} RR`}><i style={`width:${(filled * 100).toFixed(1)}%`}></i></div>}
               </>
             ) : (
               <div class="hrow" style="gap:12px">

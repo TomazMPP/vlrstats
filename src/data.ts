@@ -437,19 +437,36 @@ function rrPace(history: HistoryEntry[]) {
 }
 
 /**
+ * RR needed for Immortal 2, Immortal 3 and Radiant in each region. From Immortal 1 the RR
+ * keeps adding up instead of resetting per division. Radiant also takes the regional top 500.
+ * Source: Riot support, "Rank Rating (RR) for Immortal and Radiant ranks" (March 2026).
+ */
+const IMMORTAL: Record<Region, [number, number, number]> = {
+  br: [100, 230, 340], latam: [90, 150, 200], kr: [90, 150, 200], na: [90, 200, 450], ap: [80, 200, 400], eu: [100, 200, 500],
+};
+
+/** RR span of the current division: 0–100 below Immortal, the regional thresholds from Immortal 1 up. */
+export function divisionSpan(tier: number, region: Region): [number, number] | null {
+  if (tier < 3 || tier >= 27) return null;
+  if (tier < 24) return [0, 100];
+  const t = IMMORTAL[region];
+  return [tier === 24 ? 0 : t[tier - 25], t[tier - 24]];
+}
+
+/**
  * Rank-up projection: RR left to the next division, the wins that takes at the average RR won,
  * and the games it takes at the current pace (win rate × gain − loss rate × loss).
- * Not from Immortal up: those divisions aren't 100 RR apart.
  */
-export function rankUp(tier: number, rr: number, history: HistoryEntry[]) {
-  if (tier < 3 || tier >= 24) return null;
+export function rankUp(tier: number, rr: number, history: HistoryEntry[], region: Region) {
+  const span = divisionSpan(tier, region);
+  if (!span) return null;
   const { wins, losses, avgGain, avgLoss } = rrPace(history);
   if (avgGain == null || wins + losses < 5) return null;
   const winRate = wins / (wins + losses);
   const perGame = winRate * avgGain - (1 - winRate) * (avgLoss ?? 0);
-  const need = Math.max(1, 100 - rr);
+  const need = Math.max(1, span[1] - rr);
   return {
-    next: tier + 1, need, sample: wins + losses, winRate, avgGain, avgLoss, perGame,
+    next: tier + 1, need, sample: wins + losses, winRate, avgGain, avgLoss, perGame, top500: tier === 26,
     wins: Math.ceil(need / avgGain),
     games: perGame > 0 ? Math.ceil(need / perGame) : null,
   };
