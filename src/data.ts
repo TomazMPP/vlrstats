@@ -17,7 +17,7 @@ export type Seasonal = {
   season: { id: string; short: string }; wins: number; games: number; end_tier: Tier | null; end_rr: number;
   act_rank: Tier | null; act_wins: Tier[] | null; leaderboard_placement: { rank: number } | null;
 };
-type HistoryEntry = { match_id: string; tier: Tier; rr: number; last_change: number; elo: number; date: string; season: { id: string; short: string } };
+type HistoryEntry = { match_id: string; tier: Tier; rr: number; last_change: number; elo: number; date: string; season: { id: string; short: string }; is_placement_match?: boolean };
 type V4Player = {
   puuid: string; name: string; tag: string; team_id: string; agent: Ref; account_level: number;
   stats: { score: number; kills: number; deaths: number; assists: number; headshots: number; bodyshots: number; legshots: number; damage: { dealt: number } };
@@ -423,9 +423,34 @@ export function lobbyEstimate(puuid: string, matches: CMatch[], history: History
     }
     if (g) games++;
   }
-  const recent = history.slice(0, 20);
+  const { avgGain, avgLoss } = rrPace(history);
+  return { avgTier: n ? sum / n : null, games, avgGain, avgLoss };
+}
+
+/** Wins, losses and average RR won / lost over the last 20 ranked games (placements left out). */
+function rrPace(history: HistoryEntry[]) {
+  const recent = history.slice(0, 20).filter((h) => !h.is_placement_match);
   const gains = recent.filter((h) => h.last_change > 0).map((h) => h.last_change);
   const losses = recent.filter((h) => h.last_change < 0).map((h) => -h.last_change);
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
-  return { avgTier: n ? sum / n : null, games, avgGain: avg(gains), avgLoss: avg(losses) };
+  return { wins: gains.length, losses: losses.length, avgGain: avg(gains), avgLoss: avg(losses) };
+}
+
+/**
+ * Rank-up projection: RR left to the next division, the wins that takes at the average RR won,
+ * and the games it takes at the current pace (win rate × gain − loss rate × loss).
+ * Not from Immortal up: those divisions aren't 100 RR apart.
+ */
+export function rankUp(tier: number, rr: number, history: HistoryEntry[]) {
+  if (tier < 3 || tier >= 24) return null;
+  const { wins, losses, avgGain, avgLoss } = rrPace(history);
+  if (avgGain == null || wins + losses < 5) return null;
+  const winRate = wins / (wins + losses);
+  const perGame = winRate * avgGain - (1 - winRate) * (avgLoss ?? 0);
+  const need = Math.max(1, 100 - rr);
+  return {
+    next: tier + 1, need, sample: wins + losses, winRate, avgGain, avgLoss, perGame,
+    wins: Math.ceil(need / avgGain),
+    games: perGame > 0 ? Math.ceil(need / perGame) : null,
+  };
 }

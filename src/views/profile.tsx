@@ -1,5 +1,5 @@
 import { Icon, Img, RiotId, Shell } from './ui.js';
-import { groupBy, isFfa, lineOf, noRounds, placeOf, totals, type Line, type Profile } from '../data.js';
+import { groupBy, isFfa, lineOf, noRounds, placeOf, rankUp, totals, type Line, type Profile } from '../data.js';
 import type { RrPoint } from '../history.js';
 import { Crown } from './perf.js';
 import { SocialSection } from './social.js';
@@ -40,6 +40,29 @@ const Sparkline = ({ elos }: { elos: number[] }) => {
 };
 
 const histLabel = (h: { tier: { id: number }; rr: number }) => `${tierShort(h.tier.id)} · ${h.rr}`;
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** RR and wins left to the next division, and the games that takes at the recent pace. */
+const RankUpRows = ({ p }: { p: Profile }) => {
+  const cur = p.mmr?.current;
+  const r = cur ? rankUp(cur.tier.id, cur.rr, p.history) : null;
+  if (!r) return null;
+  const gain = Math.round(r.avgGain), loss = Math.round(r.avgLoss ?? 0);
+  const pace = `${fmt.pct(r.winRate)} de vitória, +${gain} / −${loss} RR nas últimas ${r.sample} ranqueadas: ${fmt.signed(Math.round(r.perGame * 10) / 10).replace('.', ',')} RR por partida`;
+  return (
+    <>
+      <div class="kv" title={`Faltam ${r.need} RR; cada vitória rende +${gain} RR em média`}>
+        <span class="muted">Até {tierName(r.next)}</span>
+        <span class="num">{r.need} RR · {plural(r.wins, 'vitória', 'vitórias')}</span>
+      </div>
+      <div class="kv" title={pace}>
+        <span class="muted">No ritmo atual</span>
+        <span class="num">{r.games == null ? 'RR em queda' : r.games > 50 ? 'mais de 50 partidas' : `~${plural(r.games, 'partida', 'partidas')}`}</span>
+      </div>
+    </>
+  );
+};
 
 const MmrCard = ({ p }: { p: Profile }) => {
   const { avgTier, games, avgGain, avgLoss } = p.lobby;
@@ -151,6 +174,7 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
               </div>
             )}
             <div>
+              <RankUpRows p={p} />
               {p.mmr?.peak && <div class="kv"><span class="muted">Pico</span><span class="num">{tierName(p.mmr.peak.tier.id)} · {p.mmr.peak.season.short.toUpperCase()}</span></div>}
               {season && <div class="kv"><span class="muted">Temporada</span><span class="num">{season.games} part. · {season.wins}V {season.games - season.wins}D</span></div>}
               {cur && cur.tier.id >= 3 && <div class="kv"><span class="muted">Última mudança</span><span class="num">{fmt.signed(cur.last_change)} RR</span></div>}
