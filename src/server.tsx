@@ -8,7 +8,7 @@ import { basicAuth } from 'hono/basic-auth';
 import { HTTPException } from 'hono/http-exception';
 import { ApiError } from './henrik.js';
 import { invalidate, recentMatches, sharedMatches, suggest } from './db.js';
-import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, type CMatch, type Line, type Profile } from './data.js';
+import { accountKey, findAccount, loadMatch, loadProfile, loadStored, playerPrefix, regionFromMatches, regionOf, weaponsAndSides, lineOf, totals, isFfa, placeOf, type CMatch, type Line, type Profile } from './data.js';
 import { dateTime, img, isQueue, isRegion, profileUrl, shardOf, type Region } from './lib.js';
 import { cachedPng, genericSvg, matchSvg, profileSvg, recapSvg, type OgPlayer, type OgRank } from './og.js';
 import { recap } from './recap.js';
@@ -355,6 +355,7 @@ app.get('/og/m/:region/:id', async (c) => {
     const mine = m.teams[myTeam], other = m.teams[teamIds.find((t) => t !== myTeam) ?? ''];
     const draw = !!mine && !!other && mine.won === other.won;
     return matchSvg({
+      place: isFfa(m) && who ? { pos: placeOf(m, who.puuid), of: m.players.length } : null,
       map: m.map, mapIcon: m.mapId ? img.map(m.mapId) : null,
       mode: m.queue === 'competitive' ? 'Competitivo' : m.queueName, when: dateTime(m.started),
       mine: mine?.won ?? 0, theirs: other?.won ?? 0,

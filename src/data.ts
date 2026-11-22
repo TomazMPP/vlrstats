@@ -1,7 +1,7 @@
 // Data layer: fetch from HenrikDev through the cache, compact matches, aggregate stats.
 import { henrik, ApiError } from './henrik.js';
 import { cached, getMatch, putMatch, recentMatches } from './db.js';
-import { isRegion, ratio, seg, type Queue, type Region } from './lib.js';
+import { QUEUE_MODE, isRegion, ratio, seg, type Queue, type Region } from './lib.js';
 
 // ---- API shapes (only the fields we read) ----------------------------------
 
@@ -195,7 +195,7 @@ export async function loadProfile(region: Region, name: string, tag: string, que
 
 /** One page of 10 full matches; each is stored for good. */
 export function matchPage(region: Region, name: string, tag: string, queue: Queue, i: number) {
-  const mode = queue === 'all' ? '' : `&mode=${queue}`;
+  const mode = queue === 'all' ? '' : `&mode=${QUEUE_MODE[queue] ?? queue}`;
   return cached(`${keyOf(region, name, tag)}:matches:${queue}:${i}`, TTL.matches, async () => {
     const list = await henrik<V4Match[]>(`/valorant/v4/matches/${region}/pc/${seg(name)}/${seg(tag)}?size=10&start=${i * 10}${mode}`);
     const ids: string[] = [];
@@ -254,6 +254,14 @@ export function storedLine(s: Stored): Line {
     hs: s.stats.shots?.head ?? 0, bs: s.stats.shots?.body ?? 0, ls: s.stats.shots?.leg ?? 0, dmg: s.stats.damage?.made ?? 0, fk: null,
   };
 }
+
+/** Free-for-all (Deathmatch): every player is their own team. */
+export const isFfa = (m: CMatch) => m.queue === 'deathmatch' || Object.keys(m.teams).length > 2;
+/** Modes played as a single "round" (DM, TDM): per-round stats and the rounds strip mean nothing. */
+export const noRounds = (m: CMatch) => m.rounds.length <= 1;
+/** Players ordered like the in-game DM scoreboard: kills, then fewer deaths. */
+export const leaderboard = (m: CMatch) => [...m.players].sort((a, b) => b.k - a.k || a.d - b.d);
+export const placeOf = (m: CMatch, puuid: string) => leaderboard(m).findIndex((p) => p.puuid === puuid) + 1;
 
 export function lineOf(m: CMatch, puuid: string): Line | null {
   const p = m.players.find((x) => x.puuid === puuid);

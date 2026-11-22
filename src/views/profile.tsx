@@ -1,5 +1,5 @@
 import { Icon, Img, RiotId, Shell } from './ui.js';
-import { groupBy, lineOf, totals, type Line, type Profile } from '../data.js';
+import { groupBy, isFfa, lineOf, noRounds, placeOf, totals, type Line, type Profile } from '../data.js';
 import type { RrPoint } from '../history.js';
 import { Crown } from './perf.js';
 import { SocialSection } from './social.js';
@@ -77,8 +77,11 @@ const MmrCard = ({ p }: { p: Profile }) => {
 export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queue: Queue; pages: number; rrs: Map<string, RrPoint>; social: Social }) => {
   const a = p.account;
   const base = profileUrl(p.region, a.name, a.tag);
-  const lines = p.matches.map((m) => lineOf(m, a.puuid)).filter((l): l is Line => !!l);
+  // DM/TDM have no rounds, so ACS/ADR are meaningless: they get their own numbers and stay out of the mixed totals
+  const flatQ = queue === 'deathmatch' || queue === 'hurm';
+  const lines = p.matches.filter((m) => flatQ || !noRounds(m)).map((m) => lineOf(m, a.puuid)).filter((l): l is Line => !!l);
   const t = totals(lines);
+  const firsts = queue === 'deathmatch' ? p.matches.filter((m) => placeOf(m, a.puuid) === 1).length : 0;
   const agents = groupBy(lines, 'agent').slice(0, 3);
   const cur = p.mmr?.current;
   const season = p.mmr?.seasonal?.at(-1);
@@ -175,7 +178,15 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
 
           <section class="in" style="--d:120ms">
             <div class="sh"><h2>Desempenho</h2><span class="muted num small">{QUEUES[queue]} · últimas {t.games}</span></div>
-            {t.games ? (
+            {t.games && flatQ ? (
+              <div class="grid3">
+                <div class="card kpi"><b>{fmt.two(t.kd)}</b><span class="num">K/D · {t.k} / {t.d}</span></div>
+                <div class="card kpi"><b>{fmt.one(t.k / t.games)}</b><span>Abates / partida</span></div>
+                {queue === 'deathmatch'
+                  ? <div class="card kpi"><b>{firsts}</b><span class="num">Vezes em 1º · {t.games} partidas</span></div>
+                  : <div class="card kpi"><b>{fmt.pct(t.winRate)}</b><span class="num">Vitórias · {t.wins}V {t.losses}D</span></div>}
+              </div>
+            ) : t.games ? (
               <div class="grid3">
                 <div class="card kpi"><b>{fmt.two(t.kd)}</b><span class="num">K/D · {t.k} / {t.d}</span></div>
                 <div class="card kpi"><b>{fmt.pct(t.winRate)}</b><span class="num">Vitórias · {t.wins}V {t.losses}D</span></div>
@@ -206,10 +217,14 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                     const mine = m.teams[me.team];
                     const shots = l.hs + l.bs + l.ls;
                     const rr = rrs.get(m.id);
-                    const cls = l.win ? 'w' : l.draw ? 'e' : 'l';
+                    const ffa = isFfa(m), flat = noRounds(m);
+                    const place = ffa ? placeOf(m, a.puuid) : 0;
+                    const cls = ffa ? (place === 1 ? 'w' : 'e') : l.win ? 'w' : l.draw ? 'e' : 'l';
                     return (
                       <a class="mrow" href={`/m/${p.region}/${m.id}?p=${a.puuid}`}>
-                        <span class={`res ${cls}`} aria-label={l.win ? 'Vitória' : l.draw ? 'Empate' : 'Derrota'}>{l.win ? 'V' : l.draw ? 'E' : 'D'}</span>
+                        {ffa
+                          ? <span class={`res ${cls}`} aria-label={`${place}º lugar`} title={`${place}º de ${m.players.length}`}>{place}º</span>
+                          : <span class={`res ${cls}`} aria-label={l.win ? 'Vitória' : l.draw ? 'Empate' : 'Derrota'}>{l.win ? 'V' : l.draw ? 'E' : 'D'}</span>}
                         <span class="hrow" style="gap:12px">
                           <Img src={img.agent(l.agentId)} class="ag" w={32} h={32} />
                           <span class="col">
@@ -217,9 +232,11 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                             <span class="small muted ell">{l.agent} · {queue === 'all' ? `${m.queueName} · ` : ''}{ago(m.started)}</span>
                           </span>
                         </span>
-                        <span class="r num" style="font-weight:500">{mine ? `${mine.won}–${mine.lost}` : '—'}</span>
+                        <span class="r num" style="font-weight:500;white-space:nowrap">{ffa ? `${place}º de ${m.players.length}` : mine ? `${mine.won}–${mine.lost}` : '—'}</span>
                         <span class="r num">{l.k} / {l.d} / {l.a}</span>
-                        {me.perf
+                        {flat && !me.perf
+                          ? <span class="r num muted" title="Sem ACS neste modo">—</span>
+                          : me.perf
                           ? <span class="r num" style="font-weight:500" title={`Performance Score · ACS ${fmt.int(l.score / l.rounds)}`}>{fmt.int(me.perf.score)}{m.mvp === me.puuid && <> <Crown size={12} /></>}</span>
                           : <span class="r num muted" title="ACS (partida salva antes do Performance Score)">{fmt.int(l.score / l.rounds)}</span>}
                         <span class="r num muted">{shots ? fmt.pct(l.hs / shots) : '—'}</span>
@@ -252,7 +269,9 @@ export const ProfilePage = ({ p, queue, pages, rrs, social }: { p: Profile; queu
                     <div class="num" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:13px">
                       <div><div style="font-weight:600">{fmt.pct(g.winRate)}</div><div class="muted" style="font-size:11px">Vitórias</div></div>
                       <div><div style="font-weight:600">{fmt.two(g.kd)}</div><div class="muted" style="font-size:11px">K/D</div></div>
-                      <div><div style="font-weight:600">{fmt.int(g.acs)}</div><div class="muted" style="font-size:11px">ACS</div></div>
+                      {flatQ
+                        ? <div><div style="font-weight:600">{fmt.one(g.k / g.games)}</div><div class="muted" style="font-size:11px">Abates/part.</div></div>
+                        : <div><div style="font-weight:600">{fmt.int(g.acs)}</div><div class="muted" style="font-size:11px">ACS</div></div>}
                     </div>
                   </div>
                 ))}

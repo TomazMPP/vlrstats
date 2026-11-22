@@ -106,7 +106,7 @@ button, input, select { font: inherit; color: inherit; }
 .title { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -.025em; text-wrap: balance; }
 .sh { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .sh h2 { font-size: 15px; font-weight: 600; }
-.tabs { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); }
+.tabs { display: inline-flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; gap: 4px; padding: 3px; border-radius: 12px; background: var(--sunken); box-shadow: inset 0 0 0 1px var(--line); }
 .tab { height: 30px; padding: 0 12px; border-radius: 9px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 500; color: var(--fg-2); text-decoration: none; white-space: nowrap; }
 .tab:hover { color: var(--fg); }
 .tab.on { background: var(--surface); color: var(--fg); box-shadow: var(--e1), var(--top); }

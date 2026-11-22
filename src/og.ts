@@ -178,6 +178,8 @@ export async function recapSvg(p: OgPlayer, cardUrl: string | null, r: OgRank, a
 export type OgMatch = {
   map: string; mapIcon: string | null; mode: string; when: string; mine: number; theirs: number;
   result: 'Vitória' | 'Derrota' | 'Empate' | null;
+  /** Deathmatch placement; replaces the team score. */
+  place?: { pos: number; of: number } | null;
   who: { name: string; tag: string; agent: string; agentIcon: string | null; k: number; d: number; a: number; ps: number | null; mvp: boolean } | null;
 };
 
@@ -188,11 +190,16 @@ export async function matchSvg(m: OgMatch) {
     : '';
   s += text(72, 200, 64, m.map, { w: 700, ls: -1.8 });
   s += text(72, 244, 26, `${m.mode} · ${m.when}`, { c: C.fg2 });
-  s += text(72, 386, 108, `${m.mine}`, { w: 700, ls: -3 });
-  const w1 = String(m.mine).length * 64 + 28;
-  s += text(72 + w1, 386, 108, '–', { w: 400, c: C.fg3 });
-  s += text(72 + w1 + 92, 386, 108, `${m.theirs}`, { w: 700, ls: -3, c: C.fg2 });
-  if (m.result) s += text(72, 432, 26, m.result, { w: 600, c: m.result === 'Derrota' ? C.down : C.fg });
+  if (m.place) {
+    s += text(72, 386, 108, `${m.place.pos}º`, { w: 700, ls: -3 });
+    s += text(72, 432, 26, `de ${m.place.of} jogadores`, { w: 600, c: C.fg2 });
+  } else {
+    s += text(72, 386, 108, `${m.mine}`, { w: 700, ls: -3 });
+    const w1 = String(m.mine).length * 64 + 28;
+    s += text(72 + w1, 386, 108, '–', { w: 400, c: C.fg3 });
+    s += text(72 + w1 + 92, 386, 108, `${m.theirs}`, { w: 700, ls: -3, c: C.fg2 });
+  }
+  if (m.result && !m.place) s += text(72, 432, 26, m.result, { w: 600, c: m.result === 'Derrota' ? C.down : C.fg });
   if (m.who) {
     const icon = await dataUri(m.who.agentIcon);
     const x = 660;

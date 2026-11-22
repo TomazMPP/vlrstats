@@ -33,7 +33,9 @@ export const isRegion = (r: string): r is Region => (REGIONS as readonly string[
 /** Riot shard: BR and LATAM accounts live on the NA shard, so the API reports them as "na". */
 export const shardOf = (r: Region) => (r === 'br' || r === 'latam' ? 'na' : r);
 
-export const QUEUES = { competitive: 'Competitivo', unrated: 'Sem rank', all: 'Todas' } as const;
+export const QUEUES = { competitive: 'Competitivo', unrated: 'Sem rank', swiftplay: 'Swiftplay', deathmatch: 'Mata-mata', hurm: 'TDM', all: 'Todas' } as const;
+/** HenrikDev's `mode` filter when it differs from the stored queue id. */
+export const QUEUE_MODE: Partial<Record<string, string>> = { hurm: 'teamdeathmatch' };
 export type Queue = keyof typeof QUEUES;
 export const isQueue = (q: string | undefined): q is Queue => !!q && q in QUEUES;
 
