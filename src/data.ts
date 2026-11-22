@@ -367,6 +367,46 @@ export function sidesByMap(matches: CMatch[], puuid: string) {
   return [...by.values()].sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
 }
 
+/** Ranked and unrated swap sides after round 12, so the pistols are rounds 1 and 13. */
+const PISTOL_QUEUES = new Set(['competitive', 'unrated']);
+const HALF = 12;
+
+/** The side a team played a round on: the winner's role, or the other one when it lost. */
+const sideIn = (r: CMatch['rounds'][number], team: string) => (!r.role ? null : r.w === team ? r.role : otherRole(r.role));
+
+/**
+ * Pistol rounds: won overall and per side, the round right after (bonus round when the pistol
+ * was won, eco when it was lost) and how often winning both pistols wins the match.
+ */
+export function pistols(matches: CMatch[], puuid: string) {
+  const all: WL = [0, 0], atk: WL = [0, 0], def: WL = [0, 0], afterWin: WL = [0, 0], afterLoss: WL = [0, 0], both: WL = [0, 0];
+  const byMap = new Map<string, WL>();
+  const add = (x: WL, win: boolean) => { x[1]++; if (win) x[0]++; };
+  let games = 0;
+  for (const m of matches) {
+    const p = m.players.find((x) => x.puuid === puuid);
+    if (!p || !PISTOL_QUEUES.has(m.queue)) continue;
+    let played = 0, won = 0;
+    for (const i of [0, HALF]) {
+      const r = m.rounds[i];
+      const side = r ? sideIn(r, p.team) : null;
+      if (!side) continue;
+      const win = r.w === p.team;
+      played++; if (win) won++;
+      add(all, win);
+      add(side === 'Attacker' ? atk : def, win);
+      const map = byMap.get(m.map) ?? [0, 0];
+      add(map, win);
+      byMap.set(m.map, map);
+      const next = m.rounds[i + 1];
+      if (next?.w) add(win ? afterWin : afterLoss, next.w === p.team);
+    }
+    if (played) games++;
+    if (played === 2 && won === 2) add(both, !!m.teams[p.team]?.win);
+  }
+  return { games, all, atk, def, afterWin, afterLoss, both, byMap };
+}
+
 /**
  * Estimated MMR. Riot doesn't expose hidden MMR; matchmaking builds lobbies
  * around it, so the average visible rank of the other 9 players is a good

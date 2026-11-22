@@ -1,6 +1,6 @@
 import { Img, RiotId, Shell } from './ui.js';
 import { ProfileTabs } from './profile.js';
-import { groupBy, totals, type Line, type WL, type sidesByMap, type weaponsAndSides } from '../data.js';
+import { groupBy, totals, type Line, type WL, type pistols, type sidesByMap, type weaponsAndSides } from '../data.js';
 import { fmt, img, profileUrl, ratio, tierName } from '../lib.js';
 
 const since = new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Sao_Paulo" });
@@ -11,8 +11,15 @@ export const PERIODS: Record<Period, string> = { '20': '20', '50': '50', act: 'A
 type Props = {
   region: string; name: string; tag: string; card: string; tier: number;
   lines: Line[]; period: Period; season: string; detail: ReturnType<typeof weaponsAndSides>;
-  sides: ReturnType<typeof sidesByMap>; warn: boolean;
+  sides: ReturnType<typeof sidesByMap>; pistol: ReturnType<typeof pistols>; warn: boolean;
 };
+
+const WinKpi = ({ wl, label, tip }: { wl: WL; label: string; tip?: string }) => (
+  <div class="card kpi" title={tip}>
+    <b>{wl[1] ? fmt.pct(ratio(wl[0], wl[1])) : '—'}</b>
+    <span class="num">{label} · {`${wl[0]} / ${wl[1]}`}</span>
+  </div>
+);
 
 /** Rounds won out of played, the percentage last so the column lines up on it. */
 const WinCell = ({ wl, strong }: { wl: WL; strong?: boolean }) => (
@@ -127,8 +134,8 @@ export const StatsPage = (s: Props) => {
               <section class="in" style="--d:155ms">
                 <div class="sh"><h2>Lado por mapa</h2><span class="muted small">rounds vencidos · menos de 3 partidas em cinza</span></div>
                 <div class="card scroll">
-                  <table style="min-width:520px">
-                    <thead><tr><th>Mapa</th><th>Partidas</th><th>Ataque</th><th>Defesa</th></tr></thead>
+                  <table style="min-width:640px">
+                    <thead><tr><th>Mapa</th><th>Partidas</th><th>Ataque</th><th>Defesa</th><th>Pistol</th></tr></thead>
                     <tbody>
                       {s.sides.map((m) => {
                         const a = ratio(m.atk[0], m.atk[1]), d = ratio(m.def[0], m.def[1]);
@@ -138,11 +145,26 @@ export const StatsPage = (s: Props) => {
                             <td>{m.games}</td>
                             <WinCell wl={m.atk} strong={a > d} />
                             <WinCell wl={m.def} strong={d > a} />
+                            <WinCell wl={s.pistol.byMap.get(m.name) ?? [0, 0]} />
                           </tr>
                         );
                       })}
                     </tbody>
                   </table>
+                </div>
+              </section>
+            )}
+
+            {s.pistol.all[1] > 0 && (
+              <section class="in" style="--d:165ms">
+                <div class="sh"><h2>Pistol</h2><span class="muted num small">rounds 1 e 13 · {s.pistol.games} partidas</span></div>
+                <div class="grid3">
+                  <WinKpi wl={s.pistol.all} label="Pistols vencidos" />
+                  <WinKpi wl={s.pistol.atk} label="No ataque" />
+                  <WinKpi wl={s.pistol.def} label="Na defesa" />
+                  <WinKpi wl={s.pistol.afterWin} label="Round após vencer o pistol" tip="Round seguinte a um pistol que você venceu (bônus)" />
+                  <WinKpi wl={s.pistol.afterLoss} label="Round após perder o pistol" tip="Round seguinte a um pistol que você perdeu" />
+                  <WinKpi wl={s.pistol.both} label="Partidas com os 2 pistols" tip="Partidas vencidas quando você ganha os dois pistols" />
                 </div>
               </section>
             )}
