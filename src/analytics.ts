@@ -31,6 +31,8 @@ function classify(method: string, path: string, c: Context) {
   if (/^\/m\/[^/]+\/[^/]+\/?$/.test(path)) return { kind: 'match', region: path.split('/')[2], player: null };
   const og = /^\/og\/(p|r|m)\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/.exec(path);
   if (og) return { kind: 'og', region: og[2], player: og[1] === 'm' ? null : dec(og[3]) + '#' + dec(og[4] ?? '') };
+  if (path === '/desktop') return { kind: 'desktop', region: null, player: null };
+  if (path === '/desktop/download') return { kind: 'download', region: null, player: null };
   if (path === '/compare') return { kind: 'compare', region: null, player: (c.req.query('a') ?? '').trim().slice(0, 40) || null };
   return null;
 }

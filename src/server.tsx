@@ -25,6 +25,7 @@ import { report, track } from './analytics.js';
 import { startRefresh } from './refresh.js';
 import { social } from './social.js';
 import { ApiFailure, NotFound, RateLimited } from './views/states.js';
+import { DESKTOP, DesktopPage } from './views/desktop.js';
 
 const app = new Hono();
 const PROD = process.env.NODE_ENV === 'production';
@@ -115,6 +116,13 @@ app.get('/', (c) => {
   return c.html(<Home recent={readRecent(c)}
     value={c.req.query('riotid')} hint={c.req.query('e') === '1' ? 'Use o formato Nome#TAG, com o # antes do TAG.' : undefined} />);
 });
+
+app.get('/desktop', (c) => {
+  c.header('Cache-Control', 'public, max-age=300');
+  return c.html(<DesktopPage />);
+});
+// The exe lives on GitHub Releases; this stable link always gets the latest one.
+app.get('/desktop/download', (c) => c.redirect(DESKTOP.file, 302));
 
 // Region is detected from the account; BR is the default when the API doesn't say.
 app.get('/search', async (c) => {

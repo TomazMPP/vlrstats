@@ -37,6 +37,10 @@ export const Home = ({ recent, value, hint }: {
           </p>
         </form>
 
+        <a class="note in" style="--d:100ms;align-self:center;text-decoration:none" href="/desktop">
+          <Icon name="down" size={14} />vlrstats desktop: o rank de todo mundo durante a partida<Icon name="chevron" size={14} />
+        </a>
+
         <section id="favs" class="in" style="--d:120ms;display:flex;flex-direction:column;gap:10px" hidden>
           <h2 style="font-size:15px;font-weight:600">Favoritos</h2>
           <div class="card clip"></div>

@@ -13,6 +13,7 @@ Páginas renderizadas no servidor, em pt-BR. Regiões aceitas: `br`, `latam`, `n
 - Recap do ato `/p/{região}/{nome}/{tag}/recap`: resumo do ato, com imagem para compartilhar
 - Partida `/m/{região}/{id}`: placar, estatísticas de cada jogador, Performance Score da Riot e MVP
 - Comparar `/compare?a=Nome%23TAG&b=Nome%23TAG`: dois jogadores lado a lado, com confronto direto nas partidas em comum
+- [App para PC](https://vlrstats.lol/desktop): vlrstats desktop, app grátis para Windows com o rank dos jogadores durante a partida, histórico de quem jogou com você e instalock por mapa; `/desktop/download` baixa a versão mais recente
 
 ## Como os dados funcionam
 
